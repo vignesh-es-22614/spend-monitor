@@ -2,24 +2,26 @@
 /**
  * Advanced I/O function — serves the pacing payload to the dashboard.
  *
- *   GET  /server/spend_data/data     current payload (cache, then File Store)
- *   POST /server/spend_data/refresh  force a rebuild now (guarded by a token)
+ *   GET  /data      cached payload; rebuilds from BigQuery on a cache miss
+ *   POST /refresh   force a rebuild now (guarded by X-Refresh-Token)
+ *   GET  /health    liveness
  *
- * The dashboard falls back to its embedded snapshot if this is unreachable,
- * so a failure here degrades to stale data rather than a blank page.
+ * Self-healing by design: a cache miss triggers an inline rebuild rather than
+ * failing, so there is no second store to keep in sync and nothing to lose if
+ * the cron is late. The dashboard also keeps its own embedded snapshot, so a
+ * total outage here degrades to stale data rather than a blank page.
  */
 
 const express = require('express');
 const catalystSDK = require('zcatalyst-sdk-node');
 
 const CACHE_KEY = 'spend_pacing_data';
-const DATA_FILE = 'data.json';
+const CACHE_TTL_HOURS = Number(process.env.CACHE_TTL_HOURS || 48);
 
 const app = express();
 app.use(express.json());
 
 app.use((req, res, next) => {
-  // The client is served from the same Catalyst project; allow simple GETs.
   res.set('Access-Control-Allow-Origin', process.env.ALLOWED_ORIGIN || '*');
   res.set('Access-Control-Allow-Headers', 'Content-Type, X-Refresh-Token');
   res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -27,11 +29,10 @@ app.use((req, res, next) => {
   return next();
 });
 
-async function readFromCache(catalyst) {
+/** Segment.getValue() returns the stored string directly. */
+async function readCache(catalyst) {
   try {
-    const v = await catalyst.cache().segment().get(CACHE_KEY);
-    // The SDK returns either the raw value or {cache_value: ...} by version.
-    const raw = v && typeof v === 'object' && 'cache_value' in v ? v.cache_value : v;
+    const raw = await catalyst.cache().segment().getValue(CACHE_KEY);
     return raw ? JSON.parse(raw) : null;
   } catch (e) {
     console.error('Cache read failed:', e.message);
@@ -39,36 +40,36 @@ async function readFromCache(catalyst) {
   }
 }
 
-async function readFromFileStore(catalyst) {
-  const folderId = process.env.CATALYST_FOLDER_ID;
-  if (!folderId) return null;
+async function rebuild(catalyst) {
+  const { buildPayload } = require('../spend_pacing_cron/index.js');
+  const { payload } = await buildPayload(catalyst);
+  const json = JSON.stringify(payload);
+  const segment = catalyst.cache().segment();
   try {
-    const folder = catalyst.filestore().folder(folderId);
-    const files = await folder.getAllFiles();
-    const match = (files || []).find((f) => f.file_name === DATA_FILE);
-    if (!match) return null;
-    const stream = await folder.downloadFile(match.id);
-    const chunks = [];
-    for await (const c of stream) chunks.push(c);
-    return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+    await segment.put(CACHE_KEY, json, CACHE_TTL_HOURS);
   } catch (e) {
-    console.error('File Store read failed:', e.message);
-    return null;
+    await segment.update(CACHE_KEY, json, CACHE_TTL_HOURS);
   }
+  return payload;
 }
 
 app.get('/data', async (req, res) => {
   const catalyst = catalystSDK.initialize(req);
-  const payload = (await readFromCache(catalyst)) || (await readFromFileStore(catalyst));
-  if (!payload) {
-    return res.status(503).json({
-      error: 'no_data',
-      message: 'No payload cached yet. Run the spend_pacing_cron function once.',
-    });
+  try {
+    let payload = await readCache(catalyst);
+    let source = 'cache';
+    if (!payload) {
+      console.log('Cache miss — rebuilding from BigQuery');
+      payload = await rebuild(catalyst);
+      source = 'rebuilt';
+    }
+    res.set('Cache-Control', 'public, max-age=300');
+    res.set('X-Data-Source', source);
+    return res.json(payload);
+  } catch (e) {
+    console.error('/data failed:', e);
+    return res.status(503).json({ error: 'unavailable', message: e.message });
   }
-  // Data changes at most daily; let the browser hold it briefly.
-  res.set('Cache-Control', 'public, max-age=300');
-  return res.json(payload);
 });
 
 app.post('/refresh', async (req, res) => {
@@ -78,9 +79,11 @@ app.post('/refresh', async (req, res) => {
 
   const catalyst = catalystSDK.initialize(req);
   try {
-    const { run } = require('../spend_pacing_cron/index.js');
-    const r = await run(catalyst, { forceEmail: false });
-    return res.json({ ok: true, asOf: r.asOf, rows: r.rowCount, stored: r.stored });
+    const payload = await rebuild(catalyst);
+    return res.json({
+      ok: true, asOf: payload.asOf, rows: payload.rows.length,
+      fx: payload.fx, fxSource: payload.fxSource,
+    });
   } catch (e) {
     console.error('Manual refresh failed:', e);
     return res.status(500).json({ error: 'refresh_failed', message: e.message });

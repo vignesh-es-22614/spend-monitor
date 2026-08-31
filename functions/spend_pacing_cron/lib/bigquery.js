@@ -22,12 +22,27 @@ const MCC = process.env.BQ_MCC || '5419501619';
 
 function client() {
   const raw = process.env.GCP_SERVICE_ACCOUNT_JSON;
-  if (!raw) {
-    // Falls back to ADC — useful locally, not in Catalyst.
-    return new BigQuery({ projectId: PROJECT });
+  if (raw) {
+    return new BigQuery({ projectId: PROJECT, credentials: JSON.parse(raw) });
   }
-  const credentials = JSON.parse(raw);
-  return new BigQuery({ projectId: PROJECT, credentials });
+  // Local convenience: an installed-app OAuth token (client_id / client_secret /
+  // refresh_token) works too, so a dry run needs no service account.
+  const tokenPath = process.env.BQ_TOKEN_PATH;
+  if (tokenPath) {
+    const info = JSON.parse(require('fs').readFileSync(tokenPath, 'utf8'));
+    if (info.refresh_token && info.client_id && info.client_secret) {
+      const { UserRefreshClient } = require('google-auth-library');
+      const authClient = new UserRefreshClient({
+        clientId: info.client_id,
+        clientSecret: info.client_secret,
+        refreshToken: info.refresh_token,
+      });
+      return new BigQuery({ projectId: PROJECT, authClient });
+    }
+    return new BigQuery({ projectId: PROJECT, credentials: info });
+  }
+  // Otherwise Application Default Credentials.
+  return new BigQuery({ projectId: PROJECT });
 }
 
 /**

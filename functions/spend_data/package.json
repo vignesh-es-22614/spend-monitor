@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "spend-data",
   "version": "1.0.0",
   "description": "Serves the spend-pacing payload to the dashboard",
@@ -8,8 +8,9 @@
   },
   "dependencies": {
     "express": "^4.19.2",
-    "zcatalyst-sdk-node": "^1.9.0",
-    "@google-cloud/bigquery": "^7.9.0"
+    "zcatalyst-sdk-node": "^3.4.0",
+    "@google-cloud/bigquery": "^7.9.2"
   },
   "private": true
 }
+

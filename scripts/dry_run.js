@@ -15,7 +15,9 @@ const path = require('path');
 const { run } = require('../functions/spend_pacing_cron/index.js');
 const { pct, money } = require('../functions/spend_pacing_cron/lib/pacing');
 
-// Percentages from the Q3 workbook, for the --verify check.
+// Percentages from the Q3 workbook — a snapshot AS OF THIS DATE. Comparing a
+// later pull against them is meaningless, since used% only grows.
+const SHEET_AS_OF = '2026-08-23';
 const SHEET_PCT = {
   ADMP: 76, ELA: 70, ADAP: 69, RMP: 71, SPMP: 66,
   ADSSP: 56, DSP: 55, MMP: 44, AD360: 61,
@@ -36,24 +38,41 @@ const SHEET_PCT = {
 
     if (process.argv.includes('--verify')) {
       const m = r.insights;
-      const all = [...m.over, ...m.onTrack, ...m.under];
-      console.log('\nReconciliation vs the Q3 workbook');
-      console.log('prod      used%   sheet%    diff');
-      console.log('-'.repeat(36));
-      let worst = 0;
-      for (const x of all.sort((a, b) => a.code.localeCompare(b.code))) {
-        const s = SHEET_PCT[x.code];
-        if (s === undefined) continue;
-        const d = x.used - s;
-        worst = Math.max(worst, Math.abs(d));
-        console.log(`${x.code.padEnd(8)}${x.used.toFixed(1).padStart(6)}${String(s).padStart(9)}${(d >= 0 ? '+' : '') + d.toFixed(1).padStart(8)}`);
+      const all = [...m.over, ...m.onTrack, ...m.under]
+        .sort((a, b) => a.code.localeCompare(b.code));
+
+      if (r.asOf !== SHEET_AS_OF) {
+        console.log(
+          `\nSkipping workbook reconciliation: data is through ${r.asOf}, but the\n` +
+          `stored workbook percentages are as of ${SHEET_AS_OF}. Used% only grows,\n` +
+          `so the comparison would flag normal spend as drift.\n` +
+          `Re-run with AS_OF=${SHEET_AS_OF} to check the classifiers.`
+        );
+      } else {
+        console.log('\nReconciliation vs the Q3 workbook');
+        console.log('prod      used%   sheet%    diff');
+        console.log('-'.repeat(36));
+        let worst = 0;
+        for (const x of all) {
+          const s = SHEET_PCT[x.code];
+          if (s === undefined) continue;
+          const d = x.used - s;
+          worst = Math.max(worst, Math.abs(d));
+          console.log(`${x.code.padEnd(8)}${x.used.toFixed(1).padStart(6)}${String(s).padStart(9)}${((d >= 0 ? '+' : '') + d.toFixed(1)).padStart(8)}`);
+        }
+        console.log('-'.repeat(36));
+        console.log(`worst |diff| ${worst.toFixed(1)} pts`);
+        // RMP sits ~3.2 pts out for a known reason — see RECONCILIATION.md.
+        if (worst > 4) {
+          console.error('\nWARNING: drift above 4 pts — check the classifier in lib/config.js');
+          process.exitCode = 1;
+        }
       }
-      console.log('-'.repeat(36));
-      console.log(`worst |diff| ${worst.toFixed(1)} pts`);
-      if (worst > 5) {
-        console.error('\nWARNING: drift above 5 pts — check the classifier in lib/config.js');
-        process.exitCode = 1;
-      }
+
+      console.log(`\nFX ${r.fx.rate} via ${r.fx.source}${r.fx.asOf ? ' (' + r.fx.asOf + ')' : ''}`);
+      console.log(`BigQuery latest: google=${r.perEngine.google} bing=${r.perEngine.bing} -> using ${r.asOf}`);
+      console.log(`Payload: ${r.payload.rows.length} rows, ${(JSON.stringify(r.payload).length / 1024).toFixed(0)} KB`);
+      console.log(`Email would ${r.emailing ? 'SEND today' : 'NOT send today'} (EMAIL_DAYS=${process.env.EMAIL_DAYS || 'MON'})`);
     }
   } catch (e) {
     console.error('Dry run failed:', e);

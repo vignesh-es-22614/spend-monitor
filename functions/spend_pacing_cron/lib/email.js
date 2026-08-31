@@ -124,7 +124,8 @@ function buildHtml({ metrics, bench, insights, asOf, dashboardUrl }) {
     ${dashboardUrl ? `<a href="${esc(dashboardUrl)}" style="display:inline-block;background:${INK};color:#fff;
        text-decoration:none;padding:10px 16px;border-radius:6px;font:700 13px Arial,sans-serif">Open the dashboard</a>` : ''}
     <div style="font:400 11px/1.7 'Courier New',monospace;color:${INK3};margin-top:16px;border-top:1px solid ${EDGE};padding-top:12px">
-      Projected = quarter-to-date spend &divide; benchmark, i.e. current run-rate carried to quarter end.<br>
+      Projected = spend to date + (average daily spend over the last ${bench.windowDays} days
+      &times; ${bench.remaining} days left in the quarter). Benchmark is calendar position only.<br>
       Source: Google Ads Data Transfer + Bing keyword export, reconciled to the weekly workbook within 0.1%.
     </div>
   </td></tr>
@@ -147,27 +148,41 @@ function buildText({ insights, bench, asOf }) {
   s += block('UNDER-PACING', insights.lines.underPacing);
   s += block('ROLLUPS', insights.lines.rollups);
   s += block('FLAG', insights.lines.flags);
-  s += 'Projected = quarter-to-date spend / benchmark.\n';
+  s += `Projected = spend to date + (average daily spend over the last\n`;
+  s += `            ${bench.windowDays} days x ${bench.remaining} days remaining in the quarter).\n`;
+  s += `Benchmark ${(bench.fraction * 100).toFixed(1)}% is calendar position only.\n`;
   return s;
 }
 
-/** Sends via Catalyst Mail. `catalyst` is the initialised SDK instance. */
-async function send(catalyst, { to, subject, html, text }) {
+/**
+ * Sends via Catalyst Mail.
+ *
+ * ICatalystMail (SDK v3) accepts exactly:
+ *   from_email, to_email, subject, content, cc, bcc, reply_to,
+ *   html_mode, display_name, attachments
+ * There is no plain-text alternative field — `content` carries the HTML and
+ * `html_mode: true` tells Catalyst to render it.
+ */
+async function send(catalyst, { to, subject, html }) {
   const from = process.env.MAIL_FROM;
   if (!from) throw new Error('MAIL_FROM is not set (must be a Catalyst-verified sender)');
   const recipients = (Array.isArray(to) ? to : String(to).split(','))
     .map((s) => s.trim()).filter(Boolean);
   if (!recipients.length) throw new Error('MAIL_TO is empty');
 
-  await catalyst.email().sendMail({
+  const mail = {
     from_email: from,
     to_email: recipients,
     subject,
-    html_mode: true,
     content: html,
-    // Plain-text alternative for clients that refuse HTML.
-    ...(text ? { plain_content: text } : {}),
-  });
+    html_mode: true,
+  };
+  if (process.env.MAIL_DISPLAY_NAME) mail.display_name = process.env.MAIL_DISPLAY_NAME;
+  if (process.env.MAIL_CC) {
+    mail.cc = process.env.MAIL_CC.split(',').map((s) => s.trim()).filter(Boolean);
+  }
+
+  await catalyst.email().sendMail(mail);
   return recipients;
 }
 

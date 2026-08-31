@@ -1,14 +1,14 @@
 {
   "name": "spend-pacing-cron",
   "version": "1.0.0",
-  "description": "SEM spend pacing digest — BigQuery to email, on a schedule",
+  "description": "SEM spend pacing digest - BigQuery to email, on a schedule",
   "main": "index.js",
   "engines": {
     "node": ">=18"
   },
   "dependencies": {
-    "@google-cloud/bigquery": "^7.9.0",
-    "zcatalyst-sdk-node": "^1.9.0"
+    "@google-cloud/bigquery": "^7.9.2",
+    "zcatalyst-sdk-node": "^3.4.0"
   },
   "private": true
 }

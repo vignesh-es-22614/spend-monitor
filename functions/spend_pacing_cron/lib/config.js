@@ -41,8 +41,11 @@ const BING_ACCOUNTS = {
  * This is the opposite of the intuitive rule and is what the export uses —
  * e.g. "MMP Search Branding - Bing" carries no geo token and IS counted as US.
  */
+// (?i) is REQUIRED — campaign names mix casing ("AUS" vs "Aus", "IND" vs "Ind").
+// Without it, non-US campaigns slip through and are counted as US, which
+// inflates ELA/RMP/SPMP/ADMP by up to 10 points.
 const NON_US_PATTERN =
-  '(^|[^A-Za-z])(' +
+  '(?i)(^|[^A-Za-z])(' +
   'UK|United Kingdom|Aus|Australia|CAN|Canada|Germany|France|Italy|Spain|NL|Netherlands|' +
   'Belgium|Brazil|India|IND|Japan|Singapore|Malaysia|Indonesia|Thailand|Turkey|Israel|' +
   'UAE|Saudi|Qatar|South Africa|Africa|LATAM|Mexico|Colombia|Europe|APAC|Asia|MEA|' +
