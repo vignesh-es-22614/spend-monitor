@@ -1,0 +1,52 @@
+name: Deploy to Zoho Catalyst
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install function dependencies
+        run: |
+          npm install --omit=dev --prefix functions/spend_pacing_cron
+          npm install --omit=dev --prefix functions/spend_data
+
+      - name: Syntax check
+        run: |
+          for f in \
+            functions/spend_pacing_cron/index.js \
+            functions/spend_pacing_cron/lib/config.js \
+            functions/spend_pacing_cron/lib/bigquery.js \
+            functions/spend_pacing_cron/lib/pacing.js \
+            functions/spend_pacing_cron/lib/email.js \
+            functions/spend_data/index.js ; do
+            node --check "$f"
+          done
+
+      # Offline: no BigQuery, no network. Fails the build on logic drift.
+      - name: Pacing self-test
+        run: node scripts/selftest.js
+
+      - name: Install Catalyst CLI
+        run: npm install -g zcatalyst-cli
+
+      # CATALYST_TOKEN is the refresh token from `catalyst login --no-localhost`.
+      # Store it as a repository secret; never commit it.
+      - name: Deploy
+        env:
+          CATALYST_TOKEN: ${{ secrets.CATALYST_TOKEN }}
+          CATALYST_PROJECT_ID: ${{ secrets.CATALYST_PROJECT_ID }}
+        run: |
+          catalyst deploy \
+            --token "$CATALYST_TOKEN" \
+            --project "$CATALYST_PROJECT_ID" \
+            --only functions,client

@@ -1,0 +1,22 @@
+# Never commit credentials
+*.key.json
+service-account*.json
+bigquery_token.json
+.env
+.env.*
+
+# Catalyst
+.catalystrc
+.catalyst/
+node_modules/
+
+# Local dry-run output
+preview.html
+preview.txt
+data.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

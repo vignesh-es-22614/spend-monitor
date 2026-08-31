@@ -1,0 +1,7 @@
+{
+  "name": "sem-spend-pacing-client",
+  "version": "1.0.0",
+  "description": "Hosted SEM spend pacing dashboard",
+  "homepage": "/app",
+  "main": "index.html"
+}

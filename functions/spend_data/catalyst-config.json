@@ -1,0 +1,11 @@
+{
+  "deployment": {
+    "name": "spend_data",
+    "stack": "node18",
+    "type": "advancedio",
+    "memory": 256,
+    "timeout": 120,
+    "main": "index.js",
+    "description": "Serves the cached spend-pacing payload to the dashboard, plus a guarded manual refresh."
+  }
+}

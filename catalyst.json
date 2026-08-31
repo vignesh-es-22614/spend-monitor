@@ -1,0 +1,9 @@
+{
+  "project_name": "sem-spend-pacing",
+  "functions": {
+    "source": "functions"
+  },
+  "client": {
+    "source": "client"
+  }
+}

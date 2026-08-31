@@ -1,0 +1,11 @@
+{
+  "deployment": {
+    "name": "spend_pacing_cron",
+    "stack": "node18",
+    "type": "cron",
+    "memory": 512,
+    "timeout": 300,
+    "main": "index.js",
+    "description": "Queries BigQuery for US SEM spend, computes Q3 pacing, emails the digest and refreshes the dashboard data file."
+  }
+}
