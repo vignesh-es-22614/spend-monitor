@@ -1,0 +1,20 @@
+{
+  "_comment": "Delivery schedule for the emailed digest. Edit this file (GitHub's web editor works) and commit — the daily workflow reads it. There is no server, so this replaces the in-dashboard Schedule tab.",
+
+  "enabled": true,
+
+  "_cadence": "weekly | monthly | quarterly",
+  "cadence": "weekly",
+
+  "_days": "weekly only. Any of MON TUE WED THU FRI SAT SUN, evaluated in IST.",
+  "days": ["MON"],
+
+  "_dayOfMonth": "monthly and quarterly only. 1-28, so it never skips a short month.",
+  "dayOfMonth": 1,
+
+  "_recipients": "Comma-separated. Falls back to the MAIL_TO secret when empty.",
+  "recipients": "",
+
+  "_alwaysEmailWhenOverBudget": "Send outside the schedule if any product is projected over this percentage. Set to 0 to disable.",
+  "alwaysEmailWhenOverBudget": 0
+}

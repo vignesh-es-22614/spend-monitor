@@ -1,8 +1,7 @@
-name: Deploy to Zoho Catalyst
+﻿name: Deploy to Zoho Catalyst
 
 on:
-  push:
-    branches: [main]
+  # Manual only - GitHub Pages is now the primary deploy (see daily.yml).
   workflow_dispatch:
 
 jobs:

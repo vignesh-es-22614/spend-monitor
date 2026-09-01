@@ -6,6 +6,7 @@
     "memory": 512,
     "timeout": 300,
     "main": "index.js",
-    "description": "Queries BigQuery for US SEM spend, computes Q3 pacing, emails the digest and refreshes the dashboard data file."
+    "description": "Queries BigQuery for US SEM spend, computes Q3 pacing, caches the payload and emails the digest on scheduled days.",
+    "env_variables": {}
   }
 }

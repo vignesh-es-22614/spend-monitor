@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@google-cloud/bigquery": "^7.9.2",
+    "nodemailer": "^9.0.6",
     "zcatalyst-sdk-node": "^3.4.0"
   },
   "private": true

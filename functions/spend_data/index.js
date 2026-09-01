@@ -6,17 +6,17 @@
  *   POST /refresh   force a rebuild now (guarded by X-Refresh-Token)
  *   GET  /health    liveness
  *
- * Self-healing by design: a cache miss triggers an inline rebuild rather than
- * failing, so there is no second store to keep in sync and nothing to lose if
- * the cron is late. The dashboard also keeps its own embedded snapshot, so a
- * total outage here degrades to stale data rather than a blank page.
+ * lib/ is a COPY of spend_pacing_cron/lib — Catalyst bundles each function
+ * separately, so a function can only require files inside its own directory.
+ * Run `node scripts/sync-lib.js` before deploying to keep the copies identical.
  */
 
 const express = require('express');
 const catalystSDK = require('zcatalyst-sdk-node');
-
-const CACHE_KEY = 'spend_pacing_data';
-const CACHE_TTL_HOURS = Number(process.env.CACHE_TTL_HOURS || 48);
+const {
+  buildPayload, cachePayload, readCachedPayload,
+} = require('./lib/payload');
+const schedule = require('./lib/schedule');
 
 const app = express();
 app.use(express.json());
@@ -29,37 +29,19 @@ app.use((req, res, next) => {
   return next();
 });
 
-/** Segment.getValue() returns the stored string directly. */
-async function readCache(catalyst) {
-  try {
-    const raw = await catalyst.cache().segment().getValue(CACHE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch (e) {
-    console.error('Cache read failed:', e.message);
-    return null;
-  }
-}
-
 async function rebuild(catalyst) {
-  const { buildPayload } = require('../spend_pacing_cron/index.js');
   const { payload } = await buildPayload(catalyst);
-  const json = JSON.stringify(payload);
-  const segment = catalyst.cache().segment();
-  try {
-    await segment.put(CACHE_KEY, json, CACHE_TTL_HOURS);
-  } catch (e) {
-    await segment.update(CACHE_KEY, json, CACHE_TTL_HOURS);
-  }
+  await cachePayload(catalyst, payload);
   return payload;
 }
 
 app.get('/data', async (req, res) => {
   const catalyst = catalystSDK.initialize(req);
   try {
-    let payload = await readCache(catalyst);
+    let payload = await readCachedPayload(catalyst);
     let source = 'cache';
     if (!payload) {
-      console.log('Cache miss — rebuilding from BigQuery');
+      console.log('Cache miss - rebuilding from BigQuery');
       payload = await rebuild(catalyst);
       source = 'rebuilt';
     }
@@ -88,6 +70,67 @@ app.post('/refresh', async (req, res) => {
     console.error('Manual refresh failed:', e);
     return res.status(500).json({ error: 'refresh_failed', message: e.message });
   }
+});
+
+/* ---- delivery schedule, owned by the dashboard ---------------------- */
+
+app.get('/schedule', async (req, res) => {
+  const catalyst = catalystSDK.initialize(req);
+  try {
+    const s = await schedule.read(catalyst);
+    return res.json({ ...s, summary: schedule.describe(s), mailFrom: !!process.env.MAIL_FROM });
+  } catch (e) {
+    console.error('/schedule read failed:', e);
+    return res.status(500).json({ error: 'read_failed', message: e.message });
+  }
+});
+
+app.post('/schedule', async (req, res) => {
+  const catalyst = catalystSDK.initialize(req);
+  try {
+    const s = await schedule.write(catalyst, req.body || {});
+    return res.json({ ok: true, ...s, summary: schedule.describe(s) });
+  } catch (e) {
+    console.error('/schedule write failed:', e);
+    return res.status(500).json({ error: 'write_failed', message: e.message });
+  }
+});
+
+/** Send the digest right now, to confirm delivery works. */
+app.post('/send-test', async (req, res) => {
+  const catalyst = catalystSDK.initialize(req);
+  if (!process.env.MAIL_FROM) {
+    return res.status(503).json({
+      error: 'no_sender',
+      message: 'MAIL_FROM is not set. Verify a sender in Catalyst > Mail, then redeploy.',
+    });
+  }
+  try {
+    const { run } = require('./lib/runner');
+    const r = await run(catalyst, { forceEmail: true, recipients: (req.body || {}).recipients });
+    if (r.mailError) return res.status(500).json({ error: 'send_failed', message: r.mailError });
+    return res.json({ ok: true, sentTo: r.sentTo, subject: r.subject, asOf: r.asOf });
+  } catch (e) {
+    console.error('/send-test failed:', e);
+    return res.status(500).json({ error: 'send_failed', message: e.message });
+  }
+});
+
+/** Diagnose mail delivery without sending anything. */
+app.get('/mail-status', async (req, res) => {
+  const { smtp } = require('./lib/email');
+  const out = {
+    mailFrom: process.env.MAIL_FROM || null,
+    smtpConfigured: smtp.available(),
+    catalystMailConfigured: !!process.env.MAIL_FROM,
+  };
+  if (out.smtpConfigured) {
+    const cfg = smtp.config();
+    out.smtp = { host: cfg.host, port: cfg.port, secure: cfg.secure, user: cfg.auth.user };
+    out.smtpVerify = await smtp.verify();   // opens a connection and authenticates
+  }
+  out.transport = out.smtpConfigured ? 'smtp (Catalyst Mail as fallback)' : 'catalyst mail';
+  return res.json(out);
 });
 
 app.get('/health', (req, res) => res.json({ ok: true }));

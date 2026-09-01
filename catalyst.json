@@ -1,7 +1,11 @@
 {
-  "project_name": "sem-spend-pacing",
+  "project_name": "Spend-monitor",
   "functions": {
-    "source": "functions"
+    "source": "functions",
+    "targets": [
+      "spend_pacing_cron",
+      "spend_data"
+    ]
   },
   "client": {
     "source": "client"
