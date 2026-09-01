@@ -126,10 +126,20 @@ function alignedCutoff(rows) {
   if (totalBudget <= 0) throw new Error('Budgets resolved to zero — check BUDGETS_USD in lib/config.js');
   console.log(`Budgets: ${Object.keys(budgetTuples).length} products, $${totalBudget.toLocaleString()} total`);
 
+  // The Schedule tab has no server to query, so bake in the live config and a
+  // link to where it is actually edited.
+  const repo = process.env.GITHUB_REPOSITORY || 'vignesh-es-22614/spend-monitor';
+  const configUrl = `https://github.com/${repo}/edit/main/alerts.config.json`;
+
   const html = fs.readFileSync(TEMPLATE, 'utf8')
     .replace('__DATA__', JSON.stringify(usRows))
     .replace('__PRODUCTS__', JSON.stringify(PRODUCTS))
     .replace('__BUDGETS__', JSON.stringify(budgetTuples))
+    .replace('__SCHEDULE__', JSON.stringify({
+      enabled: cfg.enabled, cadence: cfg.cadence, days: cfg.days,
+      dayOfMonth: cfg.dayOfMonth, recipients: cfg.recipients,
+    }))
+    .replace('__CONFIG_URL__', configUrl)
     .replace('__AY__', String(y))
     .replace('__AM__', String(m - 1))   // JS months are 0-based
     .replace('__AD__', String(d));

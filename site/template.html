@@ -925,6 +925,9 @@ document.getElementById('bReset').addEventListener('click',()=>{
 /* ---- Alerts panel --------------------------------------------------- */
 const API=DATA_URL?DATA_URL.replace(/\/data$/,''):'';
 let SCHED={enabled:true,cadence:'weekly',days:['MON'],dayOfMonth:1,recipients:''};
+/* The hosted build fetches the schedule; the static build has no server, so
+   alerts.config.json is baked in at build time and shown read-only. */
+const STATIC_SCHED=__SCHEDULE__, CONFIG_URL='__CONFIG_URL__';
 
 function setSeg(id,val){[...document.getElementById(id).children]
   .forEach(b=>b.classList.toggle('on',b.getAttribute('data-v')===val));}
@@ -1020,11 +1023,26 @@ function renderAlertPane(){
 async function loadSchedule(){
   const warn=document.getElementById('senderWarn');
   if(!API){
-    document.getElementById('schedState').innerHTML=
-      'Schedule editing needs the hosted dashboard — this is a static snapshot.';
-    ['schedOn','schedCad'].forEach(id=>document.getElementById(id).style.opacity=.5);
+    /* Show what is actually configured rather than the placeholder defaults -
+       a Schedule tab that disagrees with the emails you receive is worse than
+       none at all. Freeze the controls instead of leaving them
+       clickable-but-inert, so it reads as a display, not a broken form. */
+    schedToUI(STATIC_SCHED);
+    ['schedOn','schedCad','schedDays'].forEach(id=>{
+      const el=document.getElementById(id);
+      el.style.opacity=.6;el.style.pointerEvents='none';});
+    document.getElementById('schedDom').disabled=true;
+    document.getElementById('schedTo').disabled=true;
     document.getElementById('mSave').disabled=true;
     document.getElementById('mTest').disabled=true;
+    const rHint=document.getElementById('schedTo').nextElementSibling;
+    if(rHint)rHint.textContent=
+      'Comma-separated. Blank means the MAIL_TO secret is used.';
+    document.getElementById('schedState').innerHTML=
+      '<b>'+describeSched(STATIC_SCHED)+'</b><br>To change it, edit '+
+      (CONFIG_URL?'<a href="'+CONFIG_URL+'" target="_blank" rel="noopener">'+
+        'alerts.config.json</a>':'<span class="mono">alerts.config.json</span>')+
+      ' and commit — the daily workflow reads it on the next run.';
     return;
   }
   try{
