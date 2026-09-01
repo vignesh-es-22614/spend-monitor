@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<!-- Built 2026-09-01T07:56:06.679Z · data through 2026-08-27 · FX 95.17 (frankfurter) -->
+<!-- Built 2026-09-01T09:55:41.989Z · data through 2026-08-27 · FX 95.17 (frankfurter) -->
 <title>Spend Pacing</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -933,7 +933,7 @@ const API=DATA_URL?DATA_URL.replace(/\/data$/,''):'';
 let SCHED={enabled:true,cadence:'weekly',days:['MON'],dayOfMonth:1,recipients:''};
 /* The hosted build fetches the schedule; the static build has no server, so
    alerts.config.json is baked in at build time and shown read-only. */
-const STATIC_SCHED={"enabled":true,"cadence":"weekly","days":["MON"],"dayOfMonth":1,"recipients":""}, CONFIG_URL='https://github.com/vignesh-es-22614/spend-monitor/edit/main/alerts.config.json';
+const STATIC_SCHED={"enabled":true,"cadence":"weekly","days":["THU"],"dayOfMonth":1,"recipients":""}, CONFIG_URL='https://github.com/vignesh-es-22614/spend-monitor/edit/main/alerts.config.json';
 
 function setSeg(id,val){[...document.getElementById(id).children]
   .forEach(b=>b.classList.toggle('on',b.getAttribute('data-v')===val));}

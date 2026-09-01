@@ -6,8 +6,8 @@
   "_cadence": "weekly | monthly | quarterly",
   "cadence": "weekly",
 
-  "_days": "weekly only. Any of MON TUE WED THU FRI SAT SUN, evaluated in IST.",
-  "days": ["MON"],
+  "_days": "weekly only. Any of MON TUE WED THU FRI SAT SUN, evaluated in IST. THU is deliberate: Google lands ~2 days behind and Bing ~4-5, so Thursday is the first day the whole Mon-Sun week that just ended is actually complete in BigQuery. Moving this earlier means emailing a week that is still filling in.",
+  "days": ["THU"],
 
   "_dayOfMonth": "monthly and quarterly only. 1-28, so it never skips a short month.",
   "dayOfMonth": 1,
