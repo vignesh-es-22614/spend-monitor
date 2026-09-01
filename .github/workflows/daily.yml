@@ -56,7 +56,11 @@ jobs:
             node scripts/build-site.js --email
           fi
 
+      # always(): the build writes docs/ before it tries to mail, so a mail
+      # failure must not cost us the day's data refresh. The job still ends red
+      # so the failure is visible.
       - name: Commit the refreshed dashboard
+        if: always()
         run: |
           git config user.name  'github-actions[bot]'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
