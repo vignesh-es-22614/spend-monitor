@@ -444,7 +444,38 @@ function agg(rows){
 function vis(){const q=ST.srch.trim().toLowerCase();
   return PRODUCTS.filter(p=>{if(ST.bu!=='all'&&p.bu!==ST.bu)return false;
     if(q&&!(p.code.toLowerCase().includes(q)||p.name.toLowerCase().includes(q)))return false;return true;});}
-const sev=p=>p===null?'none':p>110?'over':p>=90?'watch':'good';
+/* How far into a period we are as of ASOF: the elapsed fraction (100% once
+   the period is over) and the elapsed day count, which decides whether that
+   fraction is worth judging against at all. */
+function spanOfKey(k,per){
+  if(per==='week'){const s=Date.parse(k+'T00:00:00Z');return[s,s+6*DAY];}
+  if(per==='month'){const[y,mo]=k.split('-').map(Number);
+    return[Date.UTC(y,mo-1,1),Date.UTC(y,mo,0)];}
+  return[QS,QE];
+}
+function paceOfKey(k,per){
+  const[s,e]=spanOfKey(k,per);
+  const tot=Math.round((e-s)/DAY)+1;
+  const done=Math.min(tot,Math.max(0,Math.round((Math.min(ASOF,e)-s)/DAY)+1));
+  return{frac:tot>0?done/tot:1,days:done};
+}
+function benchOfKey(k,per){return paceOfKey(k,per).frac;}
+function viewPace(){return ST.key==='ALL'?{frac:BENCH,days:DE}:paceOfKey(ST.key,ST.per);}
+function viewBench(){return viewPace().frac;}
+/* Used% only means something next to the benchmark. A flat 90/110 band called
+   87%-used green at 67% elapsed, which is how every row ended up green.
+   Ratios mirror the projected-spend thresholds so the two columns agree. */
+function sev(pv,pace){
+  if(pv===null)return 'none';
+  const vp=pace||viewPace();
+  const b=vp.frac*100;
+  /* Below three elapsed days a single day's swing dominates the ratio - day 1
+     of a 30-day month has a 3.3% benchmark - so stay neutral instead of
+     shouting about noise. */
+  if(!(b>0)||vp.days<3)return 'none';
+  const r=pv/b;
+  return r>1.05?'over':r<0.90?'watch':'good';
+}
 const sevC=s=>s==='over'?'var(--over)':s==='watch'?'var(--watch)':s==='good'?'var(--good)':'var(--ink-3)';
 /* budget fraction for the selected timeline */
 function budFrac(){return ST.key==='ALL'?1:FR[ST.per];}
@@ -545,6 +576,10 @@ function render(){
   document.getElementById('foot').innerHTML=
     'Benchmark = days elapsed &divide; days in quarter ('+DE+'/'+DT+'). '+
     'Projected Q3 = spend to date + (last '+WDAYS+' days&rsquo; average daily spend &times; '+DREM+' days left).<br>'+
+    'Used is coloured against the benchmark ('+(viewBench()*100).toFixed(1)+'% for this view), not against 100%: '+
+    '<span class="pc over">red</span> more than 5% ahead of the clock, '+
+    '<span class="pc watch">amber</span> more than 10% behind, '+
+    '<span class="pc good">green</span> on pace. The tick on each bar marks the benchmark.<br>'+
     'Scope is US-targeted campaigns in USD at FX '+ST.fx+', matching your Q3 workbook. Spend is live from Google Ads Data Transfer + Bing.<br>'+
     'Click any product, group or BU row to expand its '+(ST.per==='quarter'?'monthly':ST.per==='month'?'monthly':'weekly')+' breakdown.';
   const f=budFrac(),A=agg(rowsFor(ST.key)),M=metrics(A,f),V=vis();
@@ -635,7 +670,7 @@ function trow(id,label,chip,m,isG,isT,expandable){
     const c=isT?'#fff':sevC(sev(p));
     return '<td><span class="pc '+(isT?'':sev(p))+'"'+W+'>'+pct(p,0)+'</span>'+
       '<span class="bar"><span style="width:'+Math.min(p,100)+'%;background:'+c+'"></span>'+
-      '<i style="left:'+(BENCH*100)+'%"></i></span></td>';};
+      '<i style="left:'+(viewBench()*100)+'%"></i></span></td>';};
   const pcol=m.proj===null?'':(m.proj>105?'var(--over)':m.proj<95?'var(--watch)':'var(--good)');
   const car=expandable?'<span class="caret">'+(ST.open[id]?'▾':'▸')+'</span> ':'';
   let h='<tr class="'+cls+'"'+(expandable?' data-x="'+id+'"':'')+'><td class="lft">'+car+label+chip+'</td>'+
@@ -666,7 +701,7 @@ function detail(codes){
     const u=bud>0?t/bud*100:null,rem=bud>0?bud-t:null;
     h+='<tr class="det"><td class="lft">'+labelOf(k,per)+'</td>'+
       '<td class="bl">'+(bud>0?usd(bud):'—')+'</td><td>'+usd(t)+'</td>'+
-      '<td class="pc '+sev(u)+'">'+pct(u,0)+'</td>'+
+      '<td class="pc '+sev(u,paceOfKey(k,per))+'">'+pct(u,0)+'</td>'+
       '<td'+(rem!==null&&rem<0?' style="color:var(--over)"':'')+'>'+(rem===null?'—':usd(rem))+'</td><td></td>';
     if(both)h+='<td class="bl"></td><td>'+usd(g)+'</td><td></td>'+
       '<td class="bl"></td><td>'+usd(b)+'</td><td></td>';
