@@ -6,6 +6,10 @@ bigquery_token.json
 # key should live outside the repo entirely (prepare-deploy.js enforces that).
 it-security-online-marketing-*.json
 *-????????.json
+# ...which also matches data/bing-backfill.json purely because "backfill" is
+# eight characters. That file is spend data, not a credential, and the build
+# needs it. Keeping the guard broad and excepting by name.
+!data/bing-backfill.json
 .env
 .env.*
 !.env.deploy.example

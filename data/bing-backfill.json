@@ -1,0 +1,906 @@
+{
+  "_comment": "Bing spend lifted from the Ads API while the BigQuery transfer is down. build-site.js uses these rows INSTEAD OF BigQuery for any date listed in coveredDates. Delete this file once the transfer is fixed and has backfilled.",
+  "generatedAt": "2026-09-02T11:11:50.034Z",
+  "coveredDates": [
+    "2026-08-23",
+    "2026-08-24",
+    "2026-08-25",
+    "2026-08-26",
+    "2026-08-27",
+    "2026-08-28",
+    "2026-08-29",
+    "2026-08-30",
+    "2026-08-31",
+    "2026-09-01"
+  ],
+  "rows": [
+    {
+      "date": "2026-08-23",
+      "product": "ADAP",
+      "isUs": true,
+      "costInr": 32664.49
+    },
+    {
+      "date": "2026-08-23",
+      "product": "ADAP",
+      "isUs": false,
+      "costInr": 9609.01
+    },
+    {
+      "date": "2026-08-23",
+      "product": "ADMP",
+      "isUs": true,
+      "costInr": 6059.42
+    },
+    {
+      "date": "2026-08-23",
+      "product": "ADMP",
+      "isUs": false,
+      "costInr": 34881.65
+    },
+    {
+      "date": "2026-08-23",
+      "product": "ADSSP",
+      "isUs": true,
+      "costInr": 16169.63
+    },
+    {
+      "date": "2026-08-23",
+      "product": "ADSSP",
+      "isUs": false,
+      "costInr": 15098.36
+    },
+    {
+      "date": "2026-08-23",
+      "product": "DSP",
+      "isUs": true,
+      "costInr": 0
+    },
+    {
+      "date": "2026-08-23",
+      "product": "DSP",
+      "isUs": false,
+      "costInr": 0
+    },
+    {
+      "date": "2026-08-23",
+      "product": "ELA",
+      "isUs": true,
+      "costInr": 48397.95
+    },
+    {
+      "date": "2026-08-23",
+      "product": "ELA",
+      "isUs": false,
+      "costInr": 3871.92
+    },
+    {
+      "date": "2026-08-23",
+      "product": "MMP",
+      "isUs": true,
+      "costInr": 1335.27
+    },
+    {
+      "date": "2026-08-23",
+      "product": "RMP",
+      "isUs": true,
+      "costInr": 4945.11
+    },
+    {
+      "date": "2026-08-23",
+      "product": "SPMP",
+      "isUs": true,
+      "costInr": 849.37
+    },
+    {
+      "date": "2026-08-24",
+      "product": "AD360",
+      "isUs": true,
+      "costInr": 5445.35
+    },
+    {
+      "date": "2026-08-24",
+      "product": "ADAP",
+      "isUs": true,
+      "costInr": 167407.58
+    },
+    {
+      "date": "2026-08-24",
+      "product": "ADAP",
+      "isUs": false,
+      "costInr": 76124.34
+    },
+    {
+      "date": "2026-08-24",
+      "product": "ADMP",
+      "isUs": true,
+      "costInr": 111996.58
+    },
+    {
+      "date": "2026-08-24",
+      "product": "ADMP",
+      "isUs": false,
+      "costInr": 195832.02
+    },
+    {
+      "date": "2026-08-24",
+      "product": "ADSSP",
+      "isUs": true,
+      "costInr": 67341.42
+    },
+    {
+      "date": "2026-08-24",
+      "product": "ADSSP",
+      "isUs": false,
+      "costInr": 72278.49
+    },
+    {
+      "date": "2026-08-24",
+      "product": "DSP",
+      "isUs": true,
+      "costInr": 17847.33
+    },
+    {
+      "date": "2026-08-24",
+      "product": "DSP",
+      "isUs": false,
+      "costInr": 5281.02
+    },
+    {
+      "date": "2026-08-24",
+      "product": "ELA",
+      "isUs": false,
+      "costInr": 26127.39
+    },
+    {
+      "date": "2026-08-24",
+      "product": "ELA",
+      "isUs": true,
+      "costInr": 125091.07
+    },
+    {
+      "date": "2026-08-24",
+      "product": "MMP",
+      "isUs": true,
+      "costInr": 3931.22
+    },
+    {
+      "date": "2026-08-24",
+      "product": "RMP",
+      "isUs": true,
+      "costInr": 12824.75
+    },
+    {
+      "date": "2026-08-24",
+      "product": "RMP",
+      "isUs": false,
+      "costInr": 651.38
+    },
+    {
+      "date": "2026-08-24",
+      "product": "SPMP",
+      "isUs": true,
+      "costInr": 27107.2
+    },
+    {
+      "date": "2026-08-24",
+      "product": "SPMP",
+      "isUs": false,
+      "costInr": 1742.74
+    },
+    {
+      "date": "2026-08-25",
+      "product": "AD360",
+      "isUs": true,
+      "costInr": 7633.83
+    },
+    {
+      "date": "2026-08-25",
+      "product": "ADAP",
+      "isUs": true,
+      "costInr": 184557.65
+    },
+    {
+      "date": "2026-08-25",
+      "product": "ADAP",
+      "isUs": false,
+      "costInr": 68911.02
+    },
+    {
+      "date": "2026-08-25",
+      "product": "ADMP",
+      "isUs": true,
+      "costInr": 137940.7
+    },
+    {
+      "date": "2026-08-25",
+      "product": "ADMP",
+      "isUs": false,
+      "costInr": 192091.44
+    },
+    {
+      "date": "2026-08-25",
+      "product": "ADSSP",
+      "isUs": true,
+      "costInr": 87524.53
+    },
+    {
+      "date": "2026-08-25",
+      "product": "ADSSP",
+      "isUs": false,
+      "costInr": 74795.72
+    },
+    {
+      "date": "2026-08-25",
+      "product": "DSP",
+      "isUs": true,
+      "costInr": 19647.47
+    },
+    {
+      "date": "2026-08-25",
+      "product": "DSP",
+      "isUs": false,
+      "costInr": 4804.5
+    },
+    {
+      "date": "2026-08-25",
+      "product": "ELA",
+      "isUs": false,
+      "costInr": 19360.19
+    },
+    {
+      "date": "2026-08-25",
+      "product": "ELA",
+      "isUs": true,
+      "costInr": 159566.2
+    },
+    {
+      "date": "2026-08-25",
+      "product": "MMP",
+      "isUs": true,
+      "costInr": 4229.64
+    },
+    {
+      "date": "2026-08-25",
+      "product": "RMP",
+      "isUs": true,
+      "costInr": 13828.13
+    },
+    {
+      "date": "2026-08-25",
+      "product": "RMP",
+      "isUs": false,
+      "costInr": 1363.97
+    },
+    {
+      "date": "2026-08-25",
+      "product": "SPMP",
+      "isUs": true,
+      "costInr": 22236.71
+    },
+    {
+      "date": "2026-08-25",
+      "product": "SPMP",
+      "isUs": false,
+      "costInr": 1332.4
+    },
+    {
+      "date": "2026-08-26",
+      "product": "AD360",
+      "isUs": true,
+      "costInr": 2906.8
+    },
+    {
+      "date": "2026-08-26",
+      "product": "ADAP",
+      "isUs": true,
+      "costInr": 193145.08
+    },
+    {
+      "date": "2026-08-26",
+      "product": "ADAP",
+      "isUs": false,
+      "costInr": 72272.53
+    },
+    {
+      "date": "2026-08-26",
+      "product": "ADMP",
+      "isUs": true,
+      "costInr": 120092.4
+    },
+    {
+      "date": "2026-08-26",
+      "product": "ADMP",
+      "isUs": false,
+      "costInr": 209436.19
+    },
+    {
+      "date": "2026-08-26",
+      "product": "ADSSP",
+      "isUs": true,
+      "costInr": 67755.59
+    },
+    {
+      "date": "2026-08-26",
+      "product": "ADSSP",
+      "isUs": false,
+      "costInr": 60707.01
+    },
+    {
+      "date": "2026-08-26",
+      "product": "DSP",
+      "isUs": true,
+      "costInr": 14854.45
+    },
+    {
+      "date": "2026-08-26",
+      "product": "DSP",
+      "isUs": false,
+      "costInr": 7799.7
+    },
+    {
+      "date": "2026-08-26",
+      "product": "ELA",
+      "isUs": false,
+      "costInr": 23054.16
+    },
+    {
+      "date": "2026-08-26",
+      "product": "ELA",
+      "isUs": true,
+      "costInr": 129865.91
+    },
+    {
+      "date": "2026-08-26",
+      "product": "MMP",
+      "isUs": true,
+      "costInr": 4448.68
+    },
+    {
+      "date": "2026-08-26",
+      "product": "RMP",
+      "isUs": true,
+      "costInr": 9546.83
+    },
+    {
+      "date": "2026-08-26",
+      "product": "RMP",
+      "isUs": false,
+      "costInr": 581.55
+    },
+    {
+      "date": "2026-08-26",
+      "product": "SPMP",
+      "isUs": true,
+      "costInr": 23784.32
+    },
+    {
+      "date": "2026-08-26",
+      "product": "SPMP",
+      "isUs": false,
+      "costInr": 1471.09
+    },
+    {
+      "date": "2026-08-27",
+      "product": "AD360",
+      "isUs": true,
+      "costInr": 1042.59
+    },
+    {
+      "date": "2026-08-27",
+      "product": "ADAP",
+      "isUs": true,
+      "costInr": 196775.96
+    },
+    {
+      "date": "2026-08-27",
+      "product": "ADAP",
+      "isUs": false,
+      "costInr": 56739.57
+    },
+    {
+      "date": "2026-08-27",
+      "product": "ADMP",
+      "isUs": true,
+      "costInr": 118034.01
+    },
+    {
+      "date": "2026-08-27",
+      "product": "ADMP",
+      "isUs": false,
+      "costInr": 200127.25
+    },
+    {
+      "date": "2026-08-27",
+      "product": "ADSSP",
+      "isUs": true,
+      "costInr": 54966.23
+    },
+    {
+      "date": "2026-08-27",
+      "product": "ADSSP",
+      "isUs": false,
+      "costInr": 62554.11
+    },
+    {
+      "date": "2026-08-27",
+      "product": "DSP",
+      "isUs": true,
+      "costInr": 13861.6
+    },
+    {
+      "date": "2026-08-27",
+      "product": "DSP",
+      "isUs": false,
+      "costInr": 6586.19
+    },
+    {
+      "date": "2026-08-27",
+      "product": "ELA",
+      "isUs": false,
+      "costInr": 21153.98
+    },
+    {
+      "date": "2026-08-27",
+      "product": "ELA",
+      "isUs": true,
+      "costInr": 124858.65
+    },
+    {
+      "date": "2026-08-27",
+      "product": "MMP",
+      "isUs": true,
+      "costInr": 2897.24
+    },
+    {
+      "date": "2026-08-27",
+      "product": "RMP",
+      "isUs": true,
+      "costInr": 10859.15
+    },
+    {
+      "date": "2026-08-27",
+      "product": "RMP",
+      "isUs": false,
+      "costInr": 3141.15
+    },
+    {
+      "date": "2026-08-27",
+      "product": "SPMP",
+      "isUs": true,
+      "costInr": 26970.42
+    },
+    {
+      "date": "2026-08-27",
+      "product": "SPMP",
+      "isUs": false,
+      "costInr": 1304.66
+    },
+    {
+      "date": "2026-08-28",
+      "product": "AD360",
+      "isUs": true,
+      "costInr": 2167.43
+    },
+    {
+      "date": "2026-08-28",
+      "product": "ADAP",
+      "isUs": true,
+      "costInr": 151128.92
+    },
+    {
+      "date": "2026-08-28",
+      "product": "ADAP",
+      "isUs": false,
+      "costInr": 48317.08
+    },
+    {
+      "date": "2026-08-28",
+      "product": "ADMP",
+      "isUs": true,
+      "costInr": 116269.27
+    },
+    {
+      "date": "2026-08-28",
+      "product": "ADMP",
+      "isUs": false,
+      "costInr": 152742.25
+    },
+    {
+      "date": "2026-08-28",
+      "product": "ADSSP",
+      "isUs": true,
+      "costInr": 54580.76
+    },
+    {
+      "date": "2026-08-28",
+      "product": "ADSSP",
+      "isUs": false,
+      "costInr": 55581.26
+    },
+    {
+      "date": "2026-08-28",
+      "product": "DSP",
+      "isUs": true,
+      "costInr": 9758.21
+    },
+    {
+      "date": "2026-08-28",
+      "product": "DSP",
+      "isUs": false,
+      "costInr": 850.33
+    },
+    {
+      "date": "2026-08-28",
+      "product": "ELA",
+      "isUs": false,
+      "costInr": 20317.88
+    },
+    {
+      "date": "2026-08-28",
+      "product": "ELA",
+      "isUs": true,
+      "costInr": 141295.12
+    },
+    {
+      "date": "2026-08-28",
+      "product": "MMP",
+      "isUs": true,
+      "costInr": 4222.95
+    },
+    {
+      "date": "2026-08-28",
+      "product": "RMP",
+      "isUs": true,
+      "costInr": 9285.7
+    },
+    {
+      "date": "2026-08-28",
+      "product": "RMP",
+      "isUs": false,
+      "costInr": 3537.14
+    },
+    {
+      "date": "2026-08-28",
+      "product": "SPMP",
+      "isUs": true,
+      "costInr": 13659.78
+    },
+    {
+      "date": "2026-08-28",
+      "product": "SPMP",
+      "isUs": false,
+      "costInr": 972.76
+    },
+    {
+      "date": "2026-08-29",
+      "product": "ADAP",
+      "isUs": true,
+      "costInr": 21797.69
+    },
+    {
+      "date": "2026-08-29",
+      "product": "ADAP",
+      "isUs": false,
+      "costInr": 9191.98
+    },
+    {
+      "date": "2026-08-29",
+      "product": "ADMP",
+      "isUs": false,
+      "costInr": 25354.92
+    },
+    {
+      "date": "2026-08-29",
+      "product": "ADMP",
+      "isUs": true,
+      "costInr": 50467.81
+    },
+    {
+      "date": "2026-08-29",
+      "product": "ADSSP",
+      "isUs": true,
+      "costInr": 17861.68
+    },
+    {
+      "date": "2026-08-29",
+      "product": "ADSSP",
+      "isUs": false,
+      "costInr": 5959
+    },
+    {
+      "date": "2026-08-29",
+      "product": "ELA",
+      "isUs": true,
+      "costInr": 41076.89
+    },
+    {
+      "date": "2026-08-29",
+      "product": "ELA",
+      "isUs": false,
+      "costInr": 3030.2
+    },
+    {
+      "date": "2026-08-29",
+      "product": "MMP",
+      "isUs": true,
+      "costInr": 2181.78
+    },
+    {
+      "date": "2026-08-29",
+      "product": "RMP",
+      "isUs": true,
+      "costInr": 4972.84
+    },
+    {
+      "date": "2026-08-30",
+      "product": "ADAP",
+      "isUs": true,
+      "costInr": 38048.62
+    },
+    {
+      "date": "2026-08-30",
+      "product": "ADAP",
+      "isUs": false,
+      "costInr": 20971.27
+    },
+    {
+      "date": "2026-08-30",
+      "product": "ADMP",
+      "isUs": true,
+      "costInr": 6568.28
+    },
+    {
+      "date": "2026-08-30",
+      "product": "ADMP",
+      "isUs": false,
+      "costInr": 36464.64
+    },
+    {
+      "date": "2026-08-30",
+      "product": "ADSSP",
+      "isUs": true,
+      "costInr": 17685.68
+    },
+    {
+      "date": "2026-08-30",
+      "product": "ADSSP",
+      "isUs": false,
+      "costInr": 13518.21
+    },
+    {
+      "date": "2026-08-30",
+      "product": "DSP",
+      "isUs": true,
+      "costInr": 0
+    },
+    {
+      "date": "2026-08-30",
+      "product": "DSP",
+      "isUs": false,
+      "costInr": 0
+    },
+    {
+      "date": "2026-08-30",
+      "product": "ELA",
+      "isUs": true,
+      "costInr": 55505.7
+    },
+    {
+      "date": "2026-08-30",
+      "product": "ELA",
+      "isUs": false,
+      "costInr": 6747.15
+    },
+    {
+      "date": "2026-08-30",
+      "product": "MMP",
+      "isUs": true,
+      "costInr": 584.42
+    },
+    {
+      "date": "2026-08-30",
+      "product": "RMP",
+      "isUs": true,
+      "costInr": 5079.97
+    },
+    {
+      "date": "2026-08-30",
+      "product": "SPMP",
+      "isUs": true,
+      "costInr": 0
+    },
+    {
+      "date": "2026-08-31",
+      "product": "AD360",
+      "isUs": true,
+      "costInr": 11527.72
+    },
+    {
+      "date": "2026-08-31",
+      "product": "ADAP",
+      "isUs": true,
+      "costInr": 209245.32
+    },
+    {
+      "date": "2026-08-31",
+      "product": "ADAP",
+      "isUs": false,
+      "costInr": 65178.29
+    },
+    {
+      "date": "2026-08-31",
+      "product": "ADMP",
+      "isUs": true,
+      "costInr": 141852.46
+    },
+    {
+      "date": "2026-08-31",
+      "product": "ADMP",
+      "isUs": false,
+      "costInr": 207804.7
+    },
+    {
+      "date": "2026-08-31",
+      "product": "ADSSP",
+      "isUs": true,
+      "costInr": 82521.62
+    },
+    {
+      "date": "2026-08-31",
+      "product": "ADSSP",
+      "isUs": false,
+      "costInr": 84953.11
+    },
+    {
+      "date": "2026-08-31",
+      "product": "DSP",
+      "isUs": true,
+      "costInr": 13187.55
+    },
+    {
+      "date": "2026-08-31",
+      "product": "DSP",
+      "isUs": false,
+      "costInr": 4977.06
+    },
+    {
+      "date": "2026-08-31",
+      "product": "ELA",
+      "isUs": false,
+      "costInr": 30592.12
+    },
+    {
+      "date": "2026-08-31",
+      "product": "ELA",
+      "isUs": true,
+      "costInr": 164473.16
+    },
+    {
+      "date": "2026-08-31",
+      "product": "MMP",
+      "isUs": true,
+      "costInr": 5257.88
+    },
+    {
+      "date": "2026-08-31",
+      "product": "RMP",
+      "isUs": true,
+      "costInr": 11668.19
+    },
+    {
+      "date": "2026-08-31",
+      "product": "RMP",
+      "isUs": false,
+      "costInr": 2167.43
+    },
+    {
+      "date": "2026-08-31",
+      "product": "SPMP",
+      "isUs": true,
+      "costInr": 23870.57
+    },
+    {
+      "date": "2026-08-31",
+      "product": "SPMP",
+      "isUs": false,
+      "costInr": 1876.66
+    },
+    {
+      "date": "2026-09-01",
+      "product": "AD360",
+      "isUs": true,
+      "costInr": 2173.68
+    },
+    {
+      "date": "2026-09-01",
+      "product": "ADAP",
+      "isUs": true,
+      "costInr": 163607.66
+    },
+    {
+      "date": "2026-09-01",
+      "product": "ADAP",
+      "isUs": false,
+      "costInr": 69920.32
+    },
+    {
+      "date": "2026-09-01",
+      "product": "ADMP",
+      "isUs": true,
+      "costInr": 105551.85
+    },
+    {
+      "date": "2026-09-01",
+      "product": "ADMP",
+      "isUs": false,
+      "costInr": 191455.24
+    },
+    {
+      "date": "2026-09-01",
+      "product": "ADSSP",
+      "isUs": true,
+      "costInr": 57770.13
+    },
+    {
+      "date": "2026-09-01",
+      "product": "ADSSP",
+      "isUs": false,
+      "costInr": 83754.54
+    },
+    {
+      "date": "2026-09-01",
+      "product": "DSP",
+      "isUs": true,
+      "costInr": 15106.81
+    },
+    {
+      "date": "2026-09-01",
+      "product": "DSP",
+      "isUs": false,
+      "costInr": 4850.57
+    },
+    {
+      "date": "2026-09-01",
+      "product": "ELA",
+      "isUs": false,
+      "costInr": 24820.3
+    },
+    {
+      "date": "2026-09-01",
+      "product": "ELA",
+      "isUs": true,
+      "costInr": 135400.5
+    },
+    {
+      "date": "2026-09-01",
+      "product": "MMP",
+      "isUs": true,
+      "costInr": 3082.32
+    },
+    {
+      "date": "2026-09-01",
+      "product": "RMP",
+      "isUs": true,
+      "costInr": 11494.21
+    },
+    {
+      "date": "2026-09-01",
+      "product": "RMP",
+      "isUs": false,
+      "costInr": 1599.44
+    },
+    {
+      "date": "2026-09-01",
+      "product": "SPMP",
+      "isUs": true,
+      "costInr": 16516.13
+    },
+    {
+      "date": "2026-09-01",
+      "product": "SPMP",
+      "isUs": false,
+      "costInr": 1404.53
+    }
+  ]
+}
