@@ -511,11 +511,16 @@ function render(){
   let eng='';
   if(DATA_STATE.freshness&&DATA_STATE.freshness.google&&DATA_STATE.freshness.bing
      &&DATA_STATE.freshness.google!==DATA_STATE.freshness.bing){
-    eng=' · BigQuery has Google to '+DATA_STATE.freshness.google+
+    eng=' · coverage: Google to '+DATA_STATE.freshness.google+
         ', Bing to '+DATA_STATE.freshness.bing+' — aligned to the earlier';
   }
+  let bfNote='';
+  if(DATA_STATE.backfill){
+    bfNote=' · Bing '+DATA_STATE.backfill.from+' to '+DATA_STATE.backfill.to+
+      ' taken from the Ads API, not the BigQuery transfer';
+  }
   document.getElementById('asof').textContent=
-    'US-targeted campaigns · USD @ ₹'+ST.fx+fxNote+' · data through '+stamp+freshness+eng;
+    'US-targeted campaigns · USD @ ₹'+ST.fx+fxNote+' · data through '+stamp+freshness+eng+bfNote;
   const SW=document.getElementById('staleWarn');
   if(SW){
     const F=DATA_STATE.freshness||{},w=[];

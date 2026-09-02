@@ -93,8 +93,34 @@ function alignedCutoff(rows) {
   const to = process.env.AS_OF || new Date().toISOString().slice(0, 10);
   console.log(`Querying BigQuery ${from} .. ${to}`);
 
-  const all = await fetchSpend(from, to);
+  let all = await fetchSpend(from, to);
   if (!all.length) throw new Error(`No spend rows for ${from}..${to}`);
+
+  // Bing's BigQuery transfer stopped after 2026-08-27 and wrote that last day
+  // only partially. data/bing-backfill.json carries the missing days lifted
+  // from the Ads API. It REPLACES BigQuery for every date it covers rather
+  // than adding to it, so a partial day is corrected instead of double
+  // counted. Verified against BigQuery on the overlapping days: 61 buckets,
+  // worst 0.00%. Delete the file once the transfer is fixed.
+  let backfill = null;
+  const BACKFILL = path.join(ROOT, 'data', 'bing-backfill.json');
+  if (fs.existsSync(BACKFILL)) {
+    const bf = JSON.parse(fs.readFileSync(BACKFILL, 'utf8'));
+    const covered = new Set(bf.coveredDates);
+    const before = all.length;
+    const kept = all.filter((r) => !(r.engine === 'bing' && covered.has(r.date)));
+    const added = bf.rows
+      .filter((r) => r.date >= from && r.date <= to)
+      .map((r) => ({
+        date: r.date, product: r.product, engine: 'bing',
+        isUs: !!r.isUs, costInr: Number(r.costInr) || 0,
+      }));
+    all = kept.concat(added);
+    backfill = { from: bf.coveredDates[0], to: bf.coveredDates.at(-1), generatedAt: bf.generatedAt };
+    console.log(`Backfill: swapped ${before - kept.length} BigQuery Bing rows `
+      + `for ${added.length} from the Ads API (${backfill.from}..${backfill.to})`);
+  }
+
   const { cutoff, perEngine } = alignedCutoff(all);
   const rows = all.filter((r) => r.date <= cutoff);
   const asOf = cutoff;
@@ -151,6 +177,7 @@ function alignedCutoff(rows) {
       fxSource: fx.source,
       fxAsOf: fx.asOf || null,
       freshness: { google: perEngine.google || null, bing: perEngine.bing || null },
+      backfill,
     }))
     .replace('__AY__', String(y))
     .replace('__AM__', String(m - 1))   // JS months are 0-based
