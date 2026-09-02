@@ -457,10 +457,10 @@ function paceOfKey(k,per){
   const[s,e]=spanOfKey(k,per);
   const tot=Math.round((e-s)/DAY)+1;
   const done=Math.min(tot,Math.max(0,Math.round((Math.min(ASOF,e)-s)/DAY)+1));
-  return{frac:tot>0?done/tot:1,days:done};
+  return{frac:tot>0?done/tot:1,days:done,total:tot};
 }
 function benchOfKey(k,per){return paceOfKey(k,per).frac;}
-function viewPace(){return ST.key==='ALL'?{frac:BENCH,days:DE}:paceOfKey(ST.key,ST.per);}
+function viewPace(){return ST.key==='ALL'?{frac:BENCH,days:DE,total:DT}:paceOfKey(ST.key,ST.per);}
 function viewBench(){return viewPace().frac;}
 /* Used% only means something next to the benchmark. A flat 90/110 band called
    87%-used green at 67% elapsed, which is how every row ended up green.
@@ -522,8 +522,12 @@ function render(){
     P.map(p=>'<option value="'+p.key+'">'+p.label+'</option>').join('');
   if(ST.key!=='ALL'&&!P.find(p=>p.key===ST.key))ST.key='ALL';
   sel.value=ST.key;sel.style.display=ST.per==='quarter'?'none':'';
-  document.getElementById('bv').textContent=(BENCH*100).toFixed(1)+'%';
-  document.getElementById('bd').textContent=DE+'/'+DT+' days';
+  /* Show the benchmark the table is actually coloured against. Showing the
+     quarter's while colouring a selected week against 100% made every colour
+     look wrong. */
+  const VP=viewPace();
+  document.getElementById('bv').textContent=(VP.frac*100).toFixed(1)+'%';
+  document.getElementById('bd').textContent=VP.days+'/'+VP.total+' days';
   document.getElementById('trLbl').textContent=ST.per==='week'?'Weekly':ST.per==='month'?'Monthly':'Quarterly';
   const stamp=new Date(ASOF).toISOString().slice(0,10);
   let freshness;
@@ -608,7 +612,7 @@ function kpis(M,V){
   document.getElementById('kpis').innerHTML=
     el('Spend',usd(R.t),spendSub)+
     el('Budget',R.BT>0?usd(R.BT):'—',budSub)+
-    el('Used',pct(R.uT,1),'benchmark '+(BENCH*100).toFixed(1)+'%',R.uT===null?null:sevC(sev(R.uT)))+
+    el('Used',pct(R.uT,1),'benchmark '+(viewBench()*100).toFixed(1)+'%',R.uT===null?null:sevC(sev(R.uT)))+
     el('Projected Q3',pct(R.proj,0),R.over===null?'—':(R.over>0?'over by '+big(R.over):'under by '+big(-R.over)),
       R.proj===null?null:(R.proj>105?'var(--over)':R.proj<95?'var(--watch)':'var(--good)'))+
     el('Remaining',R.rem===null?'—':usd(R.rem),R.rem===null?'—':(R.rem<0?'over budget':'left to spend'),
@@ -687,10 +691,14 @@ function detail(codes){
   /* most recent period first, matching the picker */
   const keys=[...new Set(RAW.map(r=>keyOf(r.d,per)))].sort().reverse();
   const both=ST.eng==='all';
-  let bud=0;codes.forEach(c=>bud+=budOf(c)*FR[per]);
+  /* The per-engine budget columns were left blank here, so the Google and Bing
+     halves of an expanded row had spend with nothing to judge it against. */
+  let bud=0,budG=0,budB=0;
+  codes.forEach(c=>{bud+=budOf(c)*FR[per];budG+=bgU(c)*FR[per];budB+=bbU(c)*FR[per];});
   let h='<tr class="det dethd"><td class="lft">'+(per==='month'?'Month':'Week')+
     '</td><td class="bl">Budget</td><td>Spend</td><td>Used</td><td>Remaining</td><td></td>';
-  if(both)h+='<td class="bl"></td><td>Google</td><td></td><td class="bl"></td><td>Bing</td><td></td>';
+  if(both)h+='<td class="bl">Budget</td><td>Spend</td><td>Used</td>'+
+    '<td class="bl">Budget</td><td>Spend</td><td>Used</td>';
   h+='</tr>';
   keys.forEach(k=>{
     let g=0,b=0;
@@ -703,8 +711,14 @@ function detail(codes){
       '<td class="bl">'+(bud>0?usd(bud):'—')+'</td><td>'+usd(t)+'</td>'+
       '<td class="pc '+sev(u,paceOfKey(k,per))+'">'+pct(u,0)+'</td>'+
       '<td'+(rem!==null&&rem<0?' style="color:var(--over)"':'')+'>'+(rem===null?'—':usd(rem))+'</td><td></td>';
-    if(both)h+='<td class="bl"></td><td>'+usd(g)+'</td><td></td>'+
-      '<td class="bl"></td><td>'+usd(b)+'</td><td></td>';
+    if(both){
+      const pk=paceOfKey(k,per);
+      const uG=budG>0?g/budG*100:null,uB=budB>0?b/budB*100:null;
+      h+='<td class="bl">'+(budG>0?usd(budG):'—')+'</td><td>'+usd(g)+'</td>'+
+        '<td class="pc '+sev(uG,pk)+'">'+pct(uG,0)+'</td>'+
+        '<td class="bl">'+(budB>0?usd(budB):'—')+'</td><td>'+usd(b)+'</td>'+
+        '<td class="pc '+sev(uB,pk)+'">'+pct(uB,0)+'</td>';
+    }
     h+='</tr>';});
   return h;
 }
