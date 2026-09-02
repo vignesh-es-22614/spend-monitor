@@ -12,8 +12,11 @@
   "_dayOfMonth": "monthly and quarterly only. 1-28, so it never skips a short month.",
   "dayOfMonth": 1,
 
-  "_recipients": "Comma-separated. Falls back to the MAIL_TO secret when empty.",
+  "_recipients": "To: comma-separated. Falls back to the MAIL_TO secret when empty.",
   "recipients": "",
+
+  "_cc": "Cc: comma-separated. Falls back to the MAIL_CC secret when empty.",
+  "cc": "",
 
   "_alwaysEmailWhenOverBudget": "Send outside the schedule if any product is projected over this percentage. Set to 0 to disable.",
   "alwaysEmailWhenOverBudget": 0

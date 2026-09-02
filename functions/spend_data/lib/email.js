@@ -15,10 +15,28 @@ const OVER = '#A73232', WATCH = '#9A680D', GOOD = '#1A7F4F';
 const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 const usd = (n) => (n === null || n === undefined || Number.isNaN(n) ? '—' : `$${Math.round(n).toLocaleString('en-US')}`);
 
-function sevColour(p) {
+/**
+ * Used% is only meaningful next to the benchmark: 87% spent is alarming two
+ * thirds through a quarter and unremarkable at the end. Matches the ratio
+ * bands the dashboard uses so the two never disagree.
+ */
+function usedColour(p, benchPct) {
   if (p === null || p === undefined) return INK3;
-  if (p > 110) return OVER;
-  if (p >= 90) return WATCH;
+  if (!(benchPct > 0)) return INK3;
+  const r = p / benchPct;
+  if (r > 1.05) return OVER;
+  if (r < 0.90) return WATCH;
+  return GOOD;
+}
+
+/**
+ * A projection is judged against 100, not against the clock. The old shared
+ * helper marked a perfect 100% projection amber and a 50% one green.
+ */
+function projColour(p) {
+  if (p === null || p === undefined) return INK3;
+  if (p > 105) return OVER;
+  if (p < 95) return WATCH;
   return GOOD;
 }
 
@@ -47,9 +65,9 @@ function tableRows(metrics, bench) {
       <td align="right" style="padding:6px 10px;border-bottom:1px solid ${EDGE};background:${bg};
                  font:${w} 12px/1.4 'Courier New',monospace;color:${INK}">${usd(m.spend.total)}</td>
       <td align="right" style="padding:6px 10px;border-bottom:1px solid ${EDGE};background:${bg};
-                 font:700 12px/1.4 'Courier New',monospace;color:${sevColour(m.used)}">${pct(m.used)}</td>
+                 font:700 12px/1.4 'Courier New',monospace;color:${usedColour(m.used, bench.fraction * 100)}">${pct(m.used)}</td>
       <td align="right" style="padding:6px 10px;border-bottom:1px solid ${EDGE};background:${bg};
-                 font:700 12px/1.4 'Courier New',monospace;color:${sevColour(m.projected)}">${pct(m.projected)}</td>
+                 font:700 12px/1.4 'Courier New',monospace;color:${projColour(m.projected)}">${pct(m.projected)}</td>
       <td align="right" style="padding:6px 10px;border-bottom:1px solid ${EDGE};background:${bg};
                  font:${w} 12px/1.4 'Courier New',monospace;color:${m.over > 0 ? OVER : INK2}">${money(m.over)}</td>
     </tr>`;
@@ -115,7 +133,41 @@ function periodBlock(period) {
   </td></tr>`;
 }
 
-function buildHtml({ metrics, bench, insights, asOf, dashboardUrl, period }) {
+/**
+ * Recent periods at the cadence's granularity. One number with no series
+ * behind it cannot tell you whether this window is a blip or the trend.
+ */
+function trendBlock(trend, kind) {
+  if (!trend || trend.length < 2) return '';
+  const head = (t) => `<th align="right" style="padding:6px 10px;background:${SOFT};
+    border-bottom:2px solid ${EDGE};font:700 10px/1.3 Arial,sans-serif;color:${INK3};
+    text-transform:uppercase;letter-spacing:.06em">${t}</th>`;
+  const rows = trend.map((r) => {
+    // A part-finished period has no meaningful used%, so leave it uncoloured.
+    const colour = r.partial ? INK3 : usedColour(r.used, 100);
+    return `<tr>
+      <td style="padding:5px 10px;border-bottom:1px solid ${EDGE};
+        font:400 12px/1.4 Arial,sans-serif;color:${INK}">${esc(r.label)}${
+  r.partial ? `<span style="color:${INK3}"> (partial)</span>` : ''}</td>
+      <td align="right" style="padding:5px 10px;border-bottom:1px solid ${EDGE};
+        font:400 12px/1.4 'Courier New',monospace;color:${INK2}">${usd(r.budget)}</td>
+      <td align="right" style="padding:5px 10px;border-bottom:1px solid ${EDGE};
+        font:400 12px/1.4 'Courier New',monospace;color:${INK}">${usd(r.spend)}</td>
+      <td align="right" style="padding:5px 10px;border-bottom:1px solid ${EDGE};
+        font:700 12px/1.4 'Courier New',monospace;color:${colour}">${pct(r.used)}</td>
+    </tr>`;
+  }).join('');
+  return `<tr><td style="padding:18px 24px 0">
+    <div style="font:700 13px/1.3 Arial,sans-serif;color:${INK};text-transform:uppercase;
+      letter-spacing:.06em;margin-bottom:8px">Trend — last ${trend.length} ${
+  kind === 'week' ? 'weeks' : 'months'}</div>
+    <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">
+      <tr>${head('Period')}${head('Budget')}${head('Spend')}${head('Used')}</tr>
+      ${rows}
+    </table></td></tr>`;
+}
+
+function buildHtml({ metrics, bench, insights, asOf, dashboardUrl, period, trend }) {
   const th = (t, align = 'right') =>
     `<th align="${align}" style="padding:8px 10px;background:${SOFT};border-bottom:2px solid ${EDGE};
       font:700 10px/1.3 Arial,sans-serif;color:${INK3};text-transform:uppercase;letter-spacing:.06em">${t}</th>`;
@@ -148,6 +200,8 @@ function buildHtml({ metrics, bench, insights, asOf, dashboardUrl, period }) {
 
   ${periodBlock(period)}
 
+  ${trendBlock(trend, period && period.kind === 'week' ? 'week' : 'month')}
+
   ${section('Quarter outlook — overspending', insights.lines.overspending, OVER)}
   ${section('On track', insights.lines.onTrack, GOOD)}
   ${section('Under-pacing', insights.lines.underPacing, WATCH)}
@@ -175,7 +229,7 @@ function buildHtml({ metrics, bench, insights, asOf, dashboardUrl, period }) {
 </table></td></tr></table></body></html>`;
 }
 
-function buildText({ insights, bench, asOf, period }) {
+function buildText({ insights, bench, asOf, period, trend }) {
   const rule = '-'.repeat(62);
   let s = `SEM SPEND PACING — ${QUARTER.label}\n`;
   s += `US-targeted campaigns · USD · data through ${asOf}\n`;
@@ -199,6 +253,19 @@ function buildText({ insights, bench, asOf, period }) {
         + `${money(Math.abs(p.delta))} ${p.delta >= 0 ? 'over' : 'under'}`),
     ];
     s += block(head.toUpperCase(), rows);
+  }
+
+  if (trend && trend.length > 1) {
+    const pad = (v, w) => String(v).padStart(w);
+    const kind = period && period.kind === 'week' ? 'WEEKS' : 'MONTHS';
+    s += `TREND — LAST ${trend.length} ${kind}\n${rule}\n`;
+    s += `  ${'Period'.padEnd(18)}${pad('Budget', 11)}${pad('Spend', 11)}${pad('Used', 7)}\n`;
+    for (const r of trend) {
+      s += `  ${(r.label + (r.partial ? ' *' : '')).padEnd(18)}`
+        + `${pad(usd(r.budget), 11)}${pad(usd(r.spend), 11)}${pad(pct(r.used), 7)}\n`;
+    }
+    if (trend.some((r) => r.partial)) s += '  * partial period\n';
+    s += '\n';
   }
 
   s += block('QUARTER OUTLOOK — OVERSPENDING', insights.lines.overspending);
@@ -226,7 +293,7 @@ function buildText({ insights, bench, asOf, period }) {
  * There is no plain-text field — `content` carries the HTML and
  * `html_mode: true` tells Catalyst to render it.
  */
-async function sendViaCatalyst(catalyst, { to, subject, html }) {
+async function sendViaCatalyst(catalyst, { to, cc: ccIn, subject, html }) {
   const from = process.env.MAIL_FROM;
   if (!from) throw new Error('MAIL_FROM is not set (must be a Catalyst-verified sender)');
   if (!catalyst) throw new Error('Catalyst SDK unavailable');
@@ -242,22 +309,26 @@ async function sendViaCatalyst(catalyst, { to, subject, html }) {
     html_mode: true,
   };
   if (process.env.MAIL_DISPLAY_NAME) mail.display_name = process.env.MAIL_DISPLAY_NAME;
-  if (process.env.MAIL_CC) {
-    mail.cc = process.env.MAIL_CC.split(',').map((s) => s.trim()).filter(Boolean);
-  }
+  const cc = ccIn
+    ? (Array.isArray(ccIn) ? ccIn : String(ccIn).split(','))
+      .map((s) => s.trim()).filter(Boolean)
+    : (process.env.MAIL_CC || '').split(',').map((s) => s.trim()).filter(Boolean);
+  if (cc.length) mail.cc = cc;
 
   await catalyst.email().sendMail(mail);
   return recipients;
 }
 
-async function send(catalyst, { to, subject, html }) {
-  const recipients = (Array.isArray(to) ? to : String(to || '').split(','))
+async function send(catalyst, { to, cc: ccIn, subject, html }) {
+  const list = (v) => (Array.isArray(v) ? v : String(v || '').split(','))
     .map((s) => s.trim()).filter(Boolean);
+
+  const recipients = list(to);
   if (!recipients.length) throw new Error('No recipients configured');
 
-  const cc = process.env.MAIL_CC
-    ? process.env.MAIL_CC.split(',').map((s) => s.trim()).filter(Boolean)
-    : undefined;
+  // An explicit cc (from alerts.config.json) wins; MAIL_CC is the fallback.
+  const ccList = ccIn ? list(ccIn) : list(process.env.MAIL_CC);
+  const cc = ccList.length ? ccList : undefined;
 
   if (smtp.available()) {
     try {
@@ -276,7 +347,7 @@ async function send(catalyst, { to, subject, html }) {
     }
   }
 
-  const sent = await sendViaCatalyst(catalyst, { to: recipients, subject, html });
+  const sent = await sendViaCatalyst(catalyst, { to: recipients, cc, subject, html });
   console.log(`Sent via Catalyst Mail to ${sent.join(', ')}`);
   return sent;
 }

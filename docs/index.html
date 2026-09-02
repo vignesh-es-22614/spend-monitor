@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<!-- Built 2026-09-02T20:58:24.755Z · data through 2026-09-01 · FX 94.97 (frankfurter) -->
+<!-- Built 2026-09-02T21:15:11.107Z · data through 2026-09-01 · FX 94.97 (frankfurter) -->
 <title>Spend Pacing</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -120,6 +120,14 @@ tr.dethd td{background:var(--panel-2);font-family:var(--mono);font-size:9.5px;le
 .bchip.idm{background:var(--idm-soft);color:var(--idm)}.bchip.siem{background:var(--siem-soft);color:var(--siem)}
 .pc{font-weight:600}
 .pc.good{color:var(--good)}.pc.watch{color:var(--watch)}.pc.over{color:var(--over)}.pc.none{color:var(--ink-3);font-weight:400}
+table.atrend{border-collapse:collapse;width:100%;font-size:12px;margin-top:6px}
+table.atrend th{text-align:right;padding:5px 8px;border-bottom:1px solid var(--edge);
+  color:var(--ink-3);font-weight:600;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em}
+table.atrend th:first-child,table.atrend td:first-child{text-align:left}
+table.atrend td{text-align:right;padding:5px 8px;border-bottom:1px solid var(--edge);
+  font-family:var(--mono)}
+table.atrend tr.cur td{background:var(--soft)}
+table.atrend td.lbl{font-family:inherit}
 .bar{height:4px;border-radius:2px;background:var(--edge-soft);overflow:hidden;margin-top:3px;min-width:50px;position:relative}
 .bar span{display:block;height:100%}
 .bar i{position:absolute;top:-1px;width:1.5px;height:6px;background:var(--ink-3);opacity:.75}
@@ -270,7 +278,18 @@ footer{margin-top:24px;padding-top:13px;border-top:1px solid var(--edge);font-fa
       <button class="atab" data-atab="digest">Digest</button>
     </div>
 
-    <div class="apane on" id="ap-now"></div>
+    <div class="apane on" id="ap-now">
+      <label>Timeline</label>
+      <div class="seg" id="alertPer" style="margin-bottom:14px">
+        <button data-v="week" class="on">Week</button>
+        <button data-v="month">Month</button>
+        <button data-v="quarter">Quarter</button>
+      </div>
+      <div class="hint" id="alertWin"></div>
+      <div id="alertBody"></div>
+      <div class="agrp" style="margin-top:18px" id="alertTrendHd">Trend</div>
+      <div style="overflow-x:auto"><table class="atrend" id="alertTrend"></table></div>
+    </div>
 
     <div class="apane" id="ap-sched">
       <div class="hint" id="schedState">Loading schedule&hellip;</div>
@@ -304,9 +323,13 @@ footer{margin-top:24px;padding-top:13px;border-top:1px solid var(--edge);font-fa
         <div class="note2">1&ndash;28, so it never skips a short month.</div>
       </div>
 
-      <label for="schedTo" style="margin-top:14px">Recipients</label>
+      <label for="schedTo" style="margin-top:14px">To</label>
       <input id="schedTo" type="text" placeholder="name@zohocorp.com, other@zohocorp.com">
       <div class="note2">Comma-separated. Leave blank to use the server default.</div>
+
+      <label for="schedCc" style="margin-top:14px">Cc</label>
+      <input id="schedCc" type="text" placeholder="manager@zohocorp.com">
+      <div class="note2">Comma-separated. Optional.</div>
 
       <div class="note2" id="senderWarn" style="display:none;color:var(--over);margin-top:12px"></div>
     </div>
@@ -321,6 +344,7 @@ footer{margin-top:24px;padding-top:13px;border-top:1px solid var(--edge);font-fa
   </div>
   <div class="mf">
     <span id="schedMsg" style="flex:1;font-size:12px;color:var(--ink-3);align-self:center"></span>
+    <button class="btn" id="mCfg">Copy config</button>
     <button class="btn" id="mCopy">Copy digest</button>
     <button class="btn" id="mDl">Download .txt</button>
     <button class="btn" id="mTest">Send test now</button>
@@ -337,7 +361,7 @@ const QS=Date.UTC(2026,6,1),QE=Date.UTC(2026,8,30),DAY=864e5;
 let ASOF=Date.UTC(2026,8,1);
 let DT=Math.round((QE-QS)/DAY)+1, DE=Math.round((ASOF-QS)/DAY)+1;
 let DREM=DT-DE, BENCH=DE/DT;
-let DATA_STATE={"status":"embedded","generatedAt":"2026-09-02T20:58:24.754Z","fxSource":"frankfurter","fxAsOf":"2026-09-02","freshness":{"google":"2026-09-01","bing":"2026-09-01"},"backfill":null};
+let DATA_STATE={"status":"embedded","generatedAt":"2026-09-02T21:15:11.107Z","fxSource":"frankfurter","fxAsOf":"2026-09-02","freshness":{"google":"2026-09-01","bing":"2026-09-01"},"backfill":null};
 function recomputeDates(asOfIso){
   ASOF=Date.parse(asOfIso+'T00:00:00Z');
   DT=Math.round((QE-QS)/DAY)+1;
@@ -866,12 +890,7 @@ function insights(M,V){
   const mask=document.getElementById('mIns');
   if(mask&&mask.classList.contains('on')&&typeof renderAlertPane==='function'){
     renderAlertPane();
-    const sub=document.getElementById('mSub');
-    if(sub)sub.value='SEM Spend Pacing — '+
-      (ST.key==='ALL'?'Q3 2026 to date':labelOf(ST.key,ST.per))+
-      (over.length?' — '+over.length+' overspending':'');
-    const body=document.getElementById('mBody');
-    if(body)body.value=digest();
+    refreshAlertDigest();
   }
 }
 const strip=s=>s.replace(/<[^>]*>/g,'');
@@ -1011,7 +1030,7 @@ const API=DATA_URL?DATA_URL.replace(/\/data$/,''):'';
 let SCHED={enabled:true,cadence:'weekly',days:['MON'],dayOfMonth:1,recipients:''};
 /* The hosted build fetches the schedule; the static build has no server, so
    alerts.config.json is baked in at build time and shown read-only. */
-const STATIC_SCHED={"enabled":true,"cadence":"weekly","days":["THU"],"dayOfMonth":1,"recipients":""}, CONFIG_URL='https://github.com/vignesh-es-22614/spend-monitor/edit/main/alerts.config.json';
+const STATIC_SCHED={"enabled":true,"cadence":"weekly","days":["THU"],"dayOfMonth":1,"recipients":"","cc":"","alwaysEmailWhenOverBudget":0}, CONFIG_URL='https://github.com/vignesh-es-22614/spend-monitor/edit/main/alerts.config.json';
 
 function setSeg(id,val){[...document.getElementById(id).children]
   .forEach(b=>b.classList.toggle('on',b.getAttribute('data-v')===val));}
@@ -1037,11 +1056,15 @@ function refreshSchedBanner(){
   const el=document.getElementById('schedState');if(!el)return;
   const cur=schedFromUI();
   const dirty=JSON.stringify({e:cur.enabled,c:cur.cadence,d:[...cur.days].sort(),
-      m:cur.dayOfMonth,r:cur.recipients})!==
+      m:cur.dayOfMonth,r:cur.recipients,cc:cur.cc||''})!==
     JSON.stringify({e:SCHED.enabled,c:SCHED.cadence,d:[...(SCHED.days||[])].sort(),
-      m:SCHED.dayOfMonth,r:SCHED.recipients||''});
+      m:SCHED.dayOfMonth,r:SCHED.recipients||'',cc:SCHED.cc||''});
+  /* Without a server there is nothing to save to, so point at the route that
+     does work rather than a button that is disabled. */
+  const how=API?'— not saved yet, press Save schedule'
+                :'— press Copy config, then paste into alerts.config.json';
   el.innerHTML='<b>'+describeSched(cur)+'</b>'+
-    (dirty?' <span style="color:var(--watch)">— not saved yet, press Save schedule</span>':
+    (dirty?' <span style="color:var(--watch)">'+how+'</span>':
            ' <span style="color:var(--ink-3)">— saved</span>');
 }
 function schedFromUI(){
@@ -1050,7 +1073,8 @@ function schedFromUI(){
   const days=[...document.querySelectorAll('#schedDays button.on')].map(b=>b.getAttribute('data-d'));
   return{enabled:on,cadence:cad,days,
     dayOfMonth:parseInt(document.getElementById('schedDom').value,10)||1,
-    recipients:document.getElementById('schedTo').value.trim()};
+    recipients:document.getElementById('schedTo').value.trim(),
+    cc:document.getElementById('schedCc').value.trim()};
 }
 function schedToUI(s){
   SCHED=s;
@@ -1060,6 +1084,7 @@ function schedToUI(s){
     .forEach(b=>b.classList.toggle('on',(s.days||[]).includes(b.getAttribute('data-d'))));
   document.getElementById('schedDom').value=s.dayOfMonth||1;
   document.getElementById('schedTo').value=s.recipients||'';
+  document.getElementById('schedCc').value=s.cc||'';
   const weekly=s.cadence==='weekly';
   document.getElementById('rowDays').style.display=weekly?'':'none';
   document.getElementById('rowDom').style.display=weekly?'none':'';
@@ -1073,57 +1098,199 @@ function alertPill(){
   el.textContent=n?'('+n+')':'';
   el.style.color=n?'var(--over)':'';
 }
+/* ---- alerts, on their own timeline -------------------------------------
+   The pane used to mirror whatever the main table was showing, so it only
+   ever reported a period if you had already selected one up there. It now
+   picks its own window from AP and stands alone. */
+let AP='week';
+
+/* The window a digest for this cadence should cover: the last COMPLETE week
+   or month, since an alert sent today is about the period just finished, not
+   the few days of the current one. Quarter means quarter-to-date. */
+function alertWindow(kind){
+  if(kind==='quarter'){
+    return{per:'quarter',key:'ALL',label:'Q3 2026 to date',s:QS,e:ASOF,
+           totalDays:DT,elapsed:DE,partial:DE<DT};
+  }
+  const per=kind;
+  const keys=[...new Set(RAW.map(r=>keyOf(r.d,per)))].sort().reverse();
+  let key=keys.find(k=>periodBounds(k,per).e<=ASOF)||keys[0];
+  const{s,e}=periodBounds(key,per);
+  const totalDays=Math.round((e-s)/DAY)+1;
+  const elapsed=Math.max(0,Math.min(totalDays,Math.round((Math.min(e,ASOF)-s)/DAY)+1));
+  return{per,key,label:labelOf(key,per),s,e,totalDays,elapsed,partial:elapsed<totalDays};
+}
+
+/* Spend vs budget for that window. A partial window is judged against a
+   pro-rated budget, so a half-finished month is not reported as half under. */
+function alertReport(win,V){
+  const frac=win.partial?win.elapsed/win.totalDays:1;
+  const share=win.per==='quarter'?1:FR[win.per];
+  const lastDay=Math.min(win.e,ASOF);
+  const sp={};V.forEach(p=>sp[p.code]={g:0,b:0,t:0});
+  RAW.forEach(r=>{const x=sp[r.p];if(!x)return;
+    const t=Date.parse(r.d+'T00:00:00Z');
+    if(t<win.s||t>lastDay)return;
+    const v=toUsd(r.c);x.t+=v;if(r.e==='g')x.g+=v;else x.b+=v;});
+  const rows=[];let ts=0,tb=0;
+  V.forEach(p=>{
+    const bud=budOf(p.code)*share*frac;
+    const a=sp[p.code];
+    const s=ST.eng==='google'?a.g:ST.eng==='bing'?a.b:a.t;
+    ts+=s;tb+=bud;
+    if(bud<=0)return;
+    rows.push({code:p.code,spend:s,budget:bud,used:s/bud*100,delta:s-bud,g:a.g,b:a.b});
+  });
+  rows.sort((a,b)=>b.delta-a.delta);
+  return{rows,
+    over:rows.filter(r=>r.used>110),
+    under:rows.filter(r=>r.used<90),
+    ok:rows.filter(r=>r.used>=90&&r.used<=110),
+    total:{spend:ts,budget:tb,used:tb>0?ts/tb*100:null,delta:ts-tb}};
+}
+
+/* Recent periods at this granularity, newest first. Quarter shows months. */
+function alertTrend(kind,V,n){
+  const per=kind==='quarter'?'month':kind;
+  const share=FR[per];
+  const codes=new Set(V.map(p=>p.code));
+  const keys=[...new Set(RAW.map(r=>keyOf(r.d,per)))].sort().reverse().slice(0,n);
+  let bud=0;V.forEach(p=>bud+=budOf(p.code)*share);
+  const acc={};keys.forEach(k=>acc[k]={g:0,b:0});
+  RAW.forEach(r=>{if(!codes.has(r.p))return;const k=keyOf(r.d,per);
+    if(!acc[k])return;if(r.e==='g')acc[k].g+=r.c;else acc[k].b+=r.c;});
+  return keys.map(k=>{
+    const g=toUsd(acc[k].g),b=toUsd(acc[k].b);
+    const t=ST.eng==='google'?g:ST.eng==='bing'?b:g+b;
+    const pk=paceOfKey(k,per);
+    return{key:k,per,label:labelOf(k,per),g,b,t,budget:bud,
+           used:bud>0?t/bud*100:null,rem:bud>0?bud-t:null,pace:pk,
+           partial:pk.days<pk.total};
+  });
+}
+
 function renderAlertPane(){
-  const I=window.__I;const box=document.getElementById('ap-now');
-  if(!I){box.innerHTML='<div class="aempty">No data yet.</div>';return;}
+  const box=document.getElementById('alertBody');
+  if(!box)return;
+  const V=vis();
+  const win=alertWindow(AP);
+  const R=alertReport(win,V);
   const line=(cls,t)=>'<div class="asum"><span class="dot '+cls+'"></span><span>'+t+'</span></div>';
   const grp=(title,cls,arr)=>arr.length
     ?'<div class="agrp">'+title+'</div>'+arr.map(t=>line(cls,t)).join(''):'';
-  const strip2=s=>s;
-  const P=I.period;
-  let pHtml='';
-  if(P){
-    const items=[];
-    if(P.total.used!==null)items.push(line(
-      P.total.used>110?'over':P.total.used<90?'watch':'good',
-      '<b>All products</b>: '+pct(P.total.used,0)+' — '+usd(P.total.spend)+' of '+usd(P.total.budget)));
-    P.over.forEach(r=>items.push(line('over','<b>'+r.code+'</b>: '+pct(r.used,0)+
-      ' — <span class="mono">'+big(r.delta)+'</span> over')));
-    P.under.forEach(r=>items.push(line('watch','<b>'+r.code+'</b>: '+pct(r.used,0)+
-      ' — <span class="mono">'+big(-r.delta)+'</span> under')));
-    if(items.length)pHtml='<div class="agrp">'+P.label+
-      (P.partial?' · so far ('+P.elapsed+'/'+P.totalDays+' days)':'')+'</div>'+items.join('');
+
+  document.getElementById('alertWin').innerHTML=
+    '<b>'+win.label+'</b> · '+win.elapsed+' of '+win.totalDays+' days'+
+    (win.partial?' — still in progress, budget pro-rated':' — complete')+
+    ' · '+engLabel();
+
+  const items=[];
+  if(R.total.used!==null)items.push(line(
+    R.total.used>110?'over':R.total.used<90?'watch':'good',
+    '<b>All products</b>: '+pct(R.total.used,0)+' — '+usd(R.total.spend)+
+    ' of '+usd(R.total.budget)+' ('+big(R.total.delta)+')'));
+
+  let html=items.join('')+
+    grp('Over budget','over',R.over.map(r=>'<b>'+r.code+'</b>: '+pct(r.used,0)+
+      ' — <span class="mono">'+big(r.delta)+'</span> over'))+
+    grp('On track','good',R.ok.map(r=>'<b>'+r.code+'</b>: '+pct(r.used,0)+
+      ' — <span class="mono">'+usd(r.spend)+'</span> of '+usd(r.budget)))+
+    grp('Under budget','watch',R.under.map(r=>'<b>'+r.code+'</b>: '+pct(r.used,0)+
+      ' — <span class="mono">'+big(-r.delta)+'</span> unspent'));
+
+  /* The quarter view is the only one where a projection makes sense; a
+     finished week has nothing left to project. */
+  if(AP==='quarter'){
+    const I=window.__I;
+    if(I)html+=grp('Quarter outlook — projected overspend','over',
+      I.over.map(m=>'<b>'+m.code+'</b>: projected '+pct(m.proj,0)+
+        ' — <span class="mono">'+big(m.over)+'</span> over'));
   }
-  const html=pHtml+
-    grp(P?'Quarter outlook — overspending':'Overspending','over',
-      I.over.map(m=>'<b>'+m.code+'</b>: '+pct(m.uT,0)+' used ('+chan(m)+
-      '), projected over '+pct(m.proj-100,0)+' — <span class="mono">'+big(m.over)+'</span>'))+
-    grp('On track','good',I.ok.map(m=>'<b>'+m.code+'</b>: '+pct(m.uT,0)+' used, projected '+pct(m.proj,0)))+
-    grp('Under-pacing','watch',I.under.map(m=>'<b>'+m.code+'</b>: '+pct(m.uT,0)+' used, projected '+
-      pct(m.proj,0)+' — <span class="mono">'+big(m.qBT-m.projSpend)+'</span> headroom'))+
-    grp('Flagged','flag',I.flag.map(f=>'<b>'+f.m.code+'</b>: '+f.why));
-  box.innerHTML=html||'<div class="aempty">Nothing to flag right now.</div>';
+  box.innerHTML=html||'<div class="aempty">Nothing to flag for this window.</div>';
+
+  /* trend table */
+  const T=alertTrend(AP,V,AP==='week'?8:AP==='month'?6:3);
+  let th='<tr><th>'+(AP==='week'?'Week':'Month')+'</th><th>Budget</th><th>Spend</th>'+
+    '<th>Used</th><th>Remaining</th></tr>';
+  const body=T.map(r=>'<tr'+(r.partial?' class="cur"':'')+'><td class="lbl">'+r.label+
+    (r.partial?' <span style="color:var(--ink-3)">(partial)</span>':'')+'</td>'+
+    '<td>'+(r.budget>0?usd(r.budget):'—')+'</td><td>'+usd(r.t)+'</td>'+
+    '<td class="pc '+sev(r.used,r.pace)+'">'+pct(r.used,0)+'</td>'+
+    '<td'+(r.rem!==null&&r.rem<0?' style="color:var(--over)"':'')+'>'+
+    (r.rem===null?'—':usd(r.rem))+'</td></tr>').join('');
+  document.getElementById('alertTrend').innerHTML=th+body;
+  document.getElementById('alertTrendHd').textContent=
+    'Trend — last '+T.length+' '+(AP==='week'?'weeks':AP==='month'?'months':'months');
+  return{win,R,T};
+}
+
+/* Subject and body for whatever timeline the pane is on. */
+function alertSubject(){
+  const win=alertWindow(AP);
+  const R=alertReport(win,vis());
+  return 'SEM Spend Pacing — '+win.label+
+    (R.over.length?' — '+R.over.length+' over budget':' — on plan');
+}
+function alertDigest(){
+  const win=alertWindow(AP),V=vis(),R=alertReport(win,V);
+  const T=alertTrend(AP,V,AP==='week'?8:AP==='month'?6:3);
+  const rule='='.repeat(62),thin='-'.repeat(62);
+  let s='SEM SPEND PACING — '+win.label.toUpperCase()+'\n';
+  s+='Scope: US-targeted campaigns · '+engLabel()+' · USD @ ₹'+ST.fx+'\n';
+  s+='Window: '+win.elapsed+' of '+win.totalDays+' days'+
+     (win.partial?' (in progress — budget pro-rated)':' (complete)')+'\n'+rule+'\n\n';
+  if(R.total.used!==null){
+    s+='SUMMARY\n'+thin+'\n';
+    s+='  All products: '+pct(R.total.used,0)+' — '+usd(R.total.spend)+
+       ' of '+usd(R.total.budget)+' ('+big(R.total.delta)+')\n\n';
+  }
+  const sec=(t,arr,fn)=>{if(!arr.length)return '';
+    let o=t+'\n'+thin+'\n';arr.forEach(x=>o+='  * '+fn(x)+'\n');return o+'\n';};
+  s+=sec('OVER BUDGET',R.over,r=>r.code+': '+pct(r.used,0)+' — '+big(r.delta)+' over');
+  s+=sec('ON TRACK',R.ok,r=>r.code+': '+pct(r.used,0)+' — '+usd(r.spend)+' of '+usd(r.budget));
+  s+=sec('UNDER BUDGET',R.under,r=>r.code+': '+pct(r.used,0)+' — '+big(-r.delta)+' unspent');
+  if(T.length){
+    const pad=(v,w)=>String(v).padStart(w);
+    s+='TREND — LAST '+T.length+' '+(AP==='week'?'WEEKS':'MONTHS')+'\n'+thin+'\n';
+    s+='  '+'Period'.padEnd(18)+pad('Budget',11)+pad('Spend',11)+pad('Used',7)+'\n';
+    T.forEach(r=>{s+='  '+(r.label+(r.partial?' *':'')).padEnd(18)+
+      pad(usd(r.budget),11)+pad(usd(r.t),11)+pad(pct(r.used,0),7)+'\n';});
+    if(T.some(r=>r.partial))s+='  * partial period\n';
+    s+='\n';
+  }
+  if(AP==='quarter'&&window.__I){
+    const I=window.__I;
+    s+=sec('QUARTER OUTLOOK — PROJECTED OVERSPEND',I.over,
+      m=>m.code+': projected '+pct(m.proj,0)+' — '+big(m.over)+' over');
+  }
+  s+=rule+'\nData through '+new Date(ASOF).toISOString().slice(0,10)+
+     '. Budgets pro-rated from the Q3 plan.\n';
+  return s;
+}
+/* Keeps subject and body in step with the timeline buttons. */
+function refreshAlertDigest(){
+  const sub=document.getElementById('mSub');
+  if(sub)sub.value=alertSubject();
+  const body=document.getElementById('mBody');
+  if(body)body.value=alertDigest();
 }
 async function loadSchedule(){
   const warn=document.getElementById('senderWarn');
   if(!API){
-    /* Show what is actually configured rather than the placeholder defaults -
-       a Schedule tab that disagrees with the emails you receive is worse than
-       none at all. Freeze the controls instead of leaving them
-       clickable-but-inert, so it reads as a display, not a broken form. */
+    /* Start from what is actually configured, not placeholder defaults - a
+       Schedule tab that disagrees with the emails you receive is worse than
+       none at all. The controls stay editable so you can compose a change and
+       lift it out with Copy config; only the two buttons that need a server
+       are disabled. */
     schedToUI(STATIC_SCHED);
-    ['schedOn','schedCad','schedDays'].forEach(id=>{
-      const el=document.getElementById(id);
-      el.style.opacity=.6;el.style.pointerEvents='none';});
-    document.getElementById('schedDom').disabled=true;
-    document.getElementById('schedTo').disabled=true;
     document.getElementById('mSave').disabled=true;
     document.getElementById('mTest').disabled=true;
     const rHint=document.getElementById('schedTo').nextElementSibling;
     if(rHint)rHint.textContent=
       'Comma-separated. Blank means the MAIL_TO secret is used.';
     document.getElementById('schedState').innerHTML=
-      '<b>'+describeSched(STATIC_SCHED)+'</b><br>To change it, edit '+
+      '<b>'+describeSched(STATIC_SCHED)+'</b><br>Edit these, press '+
+      '<b>Copy config</b>, then paste into '+
       (CONFIG_URL?'<a href="'+CONFIG_URL+'" target="_blank" rel="noopener">'+
         'alerts.config.json</a>':'<span class="mono">alerts.config.json</span>')+
       ' and commit — the daily workflow reads it on the next run.';
@@ -1142,14 +1309,21 @@ async function loadSchedule(){
   }
 }
 document.getElementById('bIns').addEventListener('click',()=>{
-  const I=window.__I||{over:[]};
-  document.getElementById('mSub').value='SEM Spend Pacing — '+
-    (ST.key==='ALL'?'Q3 2026 to date':labelOf(ST.key,ST.per))+
-    (I.over.length?' — '+I.over.length+' overspending':'');
-  document.getElementById('mBody').value=digest();
+  /* Open on the timeline the digest is actually scheduled at, so the pane
+     shows what the next email will say. */
+  const cad=(STATIC_SCHED&&STATIC_SCHED.cadence)||'weekly';
+  AP=cad==='monthly'?'month':cad==='quarterly'?'quarter':'week';
+  setSeg('alertPer',AP);
   renderAlertPane();
+  refreshAlertDigest();
   document.getElementById('mIns').classList.add('on');
   loadSchedule();});
+document.getElementById('alertPer').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  AP=b.getAttribute('data-v');
+  setSeg('alertPer',AP);
+  renderAlertPane();
+  refreshAlertDigest();});
 document.querySelectorAll('.atab').forEach(t=>t.addEventListener('click',()=>{
   document.querySelectorAll('.atab').forEach(x=>x.classList.remove('on'));
   document.querySelectorAll('.apane').forEach(x=>x.classList.remove('on'));
@@ -1173,6 +1347,7 @@ document.getElementById('schedDays').addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;b.classList.toggle('on');refreshSchedBanner();});
 document.getElementById('schedDom').addEventListener('input',refreshSchedBanner);
 document.getElementById('schedTo').addEventListener('input',refreshSchedBanner);
+document.getElementById('schedCc').addEventListener('input',refreshSchedBanner);
 document.getElementById('mSave').addEventListener('click',async e=>{
   const msg=document.getElementById('schedMsg');
   const s=schedFromUI();
@@ -1205,6 +1380,22 @@ document.getElementById('mCopy').addEventListener('click',async e=>{
     e.target.textContent='Copied';setTimeout(()=>e.target.textContent='Copy digest',1400);}
   catch(err){const t=document.getElementById('mBody');t.focus();t.select();
     e.target.textContent='Press Ctrl+C';setTimeout(()=>e.target.textContent='Copy digest',1800);}});
+/* With no server to save to, the next best thing is handing over exactly what
+   alerts.config.json should contain, ready to paste. */
+document.getElementById('mCfg').addEventListener('click',async e=>{
+  const s=schedFromUI();
+  const cfg={enabled:s.enabled,cadence:s.cadence,days:s.days,dayOfMonth:s.dayOfMonth,
+    recipients:s.recipients,cc:s.cc,
+    alwaysEmailWhenOverBudget:(STATIC_SCHED&&STATIC_SCHED.alwaysEmailWhenOverBudget)||0};
+  const txt=JSON.stringify(cfg,null,2);
+  try{await navigator.clipboard.writeText(txt);
+    e.target.textContent='Copied';}
+  catch(err){const b=document.getElementById('mBody');b.value=txt;b.focus();b.select();
+    e.target.textContent='In Body — Ctrl+C';}
+  const msg=document.getElementById('schedMsg');
+  msg.style.color='var(--ink-3)';
+  msg.textContent='Paste into alerts.config.json and commit.';
+  setTimeout(()=>e.target.textContent='Copy config',2000);});
 let DL=null;
 (async()=>{try{if(window.claude&&window.claude.use)DL=await window.claude.use('downloads');}catch(e){DL=null;}
   document.getElementById('bCsv').style.display=DL?'':'none';
@@ -1214,7 +1405,7 @@ async function dl(fn,d){if(!DL){alert('Downloads are not available in this view.
     alert('Could not save: '+(e&&e.message?e.message:'unknown'));}}
 document.getElementById('bCsv').addEventListener('click',()=>dl('spend-pacing-'+ST.per+'.csv',csv()));
 document.getElementById('mDl').addEventListener('click',()=>
-  dl('spend-insights-'+ST.per+'.txt',document.getElementById('mBody').value));
+  dl('spend-alerts-'+AP+'.txt',document.getElementById('mBody').value));
 
 /* ---- daily refresh -------------------------------------------------
    Render the embedded snapshot immediately, then swap in live data when

@@ -142,4 +142,68 @@ function report(rows, asOf, cadence, { fx = FX_INR_PER_USD, usOnly = true } = {}
   };
 }
 
-module.exports = { report, windowFor, label, budgetFraction, weekStart };
+/**
+ * The last `n` periods at the cadence's granularity, newest first, so the
+ * digest can show where this window sits rather than a single number with no
+ * context. Quarterly reports months, since a quarter has no useful series.
+ *
+ * @returns {{label, start, end, spend, budget, used, partial, elapsed, totalDays}[]}
+ */
+function trend(rows, asOf, cadence, { fx = FX_INR_PER_USD, usOnly = true, n = 8 } = {}) {
+  const end = d(asOf);
+  const kind = cadence === 'weekly' ? 'week' : 'month';
+
+  // Walk back from the window containing asOf.
+  const starts = [];
+  if (kind === 'week') {
+    let s = weekStart(end);
+    for (let i = 0; i < n; i++) { starts.push(s); s -= 7 * DAY; }
+  } else {
+    const dt = new Date(end);
+    for (let i = 0; i < n; i++) {
+      starts.push(Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth() - i, 1));
+    }
+  }
+
+  const qStart = d(QUARTER.start);
+  const qEnd = d(QUARTER.end);
+
+  const totalBudget = PRODUCTS.reduce((a, p) => {
+    const b = BUDGETS_USD[p.code] || { google: 0, bing: 0 };
+    return a + b.google + b.bing;
+  }, 0);
+  const share = kind === 'week' ? 1 / 13 : 1 / 3;
+
+  const out = [];
+  for (const s of starts) {
+    const e = kind === 'week'
+      ? s + 6 * DAY
+      : Date.UTC(new Date(s).getUTCFullYear(), new Date(s).getUTCMonth() + 1, 0);
+    // Periods entirely outside the quarter have no budget to compare against.
+    if (e < qStart || s > qEnd) continue;
+
+    const lastDay = Math.min(e, end);
+    const totalDays = Math.round((e - s) / DAY) + 1;
+    const elapsed = Math.max(0, Math.round((lastDay - s) / DAY) + 1);
+
+    let spend = 0;
+    for (const r of rows) {
+      if (usOnly && !r.isUs) continue;
+      const t = d(r.date);
+      if (t < s || t > lastDay) continue;
+      spend += r.costInr / fx;
+    }
+    const budget = totalBudget * share;
+    out.push({
+      label: label({ kind, start: s, end: e }),
+      start: iso(s), end: iso(e),
+      spend, budget,
+      used: budget > 0 ? (spend / budget) * 100 : null,
+      partial: elapsed < totalDays,
+      elapsed, totalDays,
+    });
+  }
+  return out;
+}
+
+module.exports = { report, trend, windowFor, label, budgetFraction, weekStart };

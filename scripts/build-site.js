@@ -38,7 +38,7 @@ const DAY_NAMES = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 function loadConfig() {
   const base = {
     enabled: true, cadence: 'weekly', days: ['MON'], dayOfMonth: 1,
-    recipients: '', alwaysEmailWhenOverBudget: 0,
+    recipients: '', cc: '', alwaysEmailWhenOverBudget: 0,
   };
   if (!fs.existsSync(CONFIG)) return base;
   try {
@@ -134,6 +134,10 @@ function alignedCutoff(rows) {
   const metrics = metricsFor(aggregate(rows, { usOnly: true, fx: fx.rate }), bench, rate);
   const insights = buildInsights(metrics, bench);
   const period = periodLib.report(rows, asOf, cfg.cadence, { fx: fx.rate });
+  // One period with no series behind it cannot say whether it is a blip.
+  const trend = periodLib.trend(rows, asOf, cfg.cadence, {
+    fx: fx.rate, n: cfg.cadence === 'weekly' ? 8 : 4,
+  });
 
   /* ---- static page ------------------------------------------------- */
   const usRows = rows.filter((r) => r.isUs).map((r) => ({
@@ -166,7 +170,8 @@ function alignedCutoff(rows) {
     .replace('__BUDGETS__', JSON.stringify(budgetTuples))
     .replace('__SCHEDULE__', JSON.stringify({
       enabled: cfg.enabled, cadence: cfg.cadence, days: cfg.days,
-      dayOfMonth: cfg.dayOfMonth, recipients: cfg.recipients,
+      dayOfMonth: cfg.dayOfMonth, recipients: cfg.recipients, cc: cfg.cc,
+      alwaysEmailWhenOverBudget: cfg.alwaysEmailWhenOverBudget,
     }))
     .replace('__CONFIG_URL__', configUrl)
     // Per-engine coverage, so a stalled transfer is visible on the page rather
@@ -223,17 +228,19 @@ ${html}
     ? `SEM Spend Pacing — ${period.label} — ${insights.over.length} over budget (Q3 ${Math.round(insights.total.projected)}%)`
     : `SEM Spend Pacing — ${period.label} — on plan (Q3 ${Math.round(insights.total.projected)}%)`;
 
+  const cc_ = (cfg.cc || '').trim() || process.env.MAIL_CC || '';
   const sent = await send(null, {
     to: to_,
+    cc: cc_,
     subject,
     html: buildHtml({
-      metrics, bench, insights, asOf, period,
+      metrics, bench, insights, asOf, period, trend,
       dashboardUrl: process.env.DASHBOARD_URL || '',
     }),
   });
-  console.log(`Emailed "${subject}" to ${sent.join(', ')}`);
+  console.log(`Emailed "${subject}" to ${sent.join(', ')}${cc_ ? ` (cc ${cc_})` : ''}`);
   // Text version is handy in the workflow log for debugging.
-  console.log('\n' + buildText({ insights, bench, asOf, period }));
+  console.log('\n' + buildText({ insights, bench, asOf, period, trend }));
 })().catch((e) => {
   console.error('build-site failed:', e);
   process.exit(1);
