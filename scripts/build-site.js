@@ -132,6 +132,9 @@ function alignedCutoff(rows) {
   const configUrl = `https://github.com/${repo}/edit/main/alerts.config.json`;
 
   const html = fs.readFileSync(TEMPLATE, 'utf8')
+    // Two sites: the FX input and the initial state. Both must match the rate
+    // the digest was computed with, or page and email quote different numbers.
+    .replace(/__FX__/g, String(fx.rate))
     .replace('__DATA__', JSON.stringify(usRows))
     .replace('__PRODUCTS__', JSON.stringify(PRODUCTS))
     .replace('__BUDGETS__', JSON.stringify(budgetTuples))
@@ -140,6 +143,15 @@ function alignedCutoff(rows) {
       dayOfMonth: cfg.dayOfMonth, recipients: cfg.recipients,
     }))
     .replace('__CONFIG_URL__', configUrl)
+    // Per-engine coverage, so a stalled transfer is visible on the page rather
+    // than looking like a broken refresh.
+    .replace('__DATA_STATE__', JSON.stringify({
+      status: 'embedded',
+      generatedAt: new Date().toISOString(),
+      fxSource: fx.source,
+      fxAsOf: fx.asOf || null,
+      freshness: { google: perEngine.google || null, bing: perEngine.bing || null },
+    }))
     .replace('__AY__', String(y))
     .replace('__AM__', String(m - 1))   // JS months are 0-based
     .replace('__AD__', String(d));

@@ -169,7 +169,7 @@ footer{margin-top:24px;padding-top:13px;border-top:1px solid var(--edge);font-fa
   <div class="hdr">
     <div class="r1">
       <div><p class="eyebrow">IT Security &amp; Online Marketing &middot; SEM</p>
-        <h1>Spend Pacing</h1><p class="asof" id="asof"></p></div>
+        <h1>Spend Pacing</h1><p class="asof" id="asof"></p><p class="asof" id="staleWarn" style="display:none;color:var(--over);font-weight:600"></p></div>
       <div class="acts">
         <button class="btn" id="bHow">How projection works</button>
         <button class="btn" id="bIns">Alerts <span id="alertPill"></span></button>
@@ -183,7 +183,7 @@ footer{margin-top:24px;padding-top:13px;border-top:1px solid var(--edge);font-fa
       <div class="seg" id="sgEng"><button data-v="all" class="on">Google + Bing</button><button data-v="google">Google</button><button data-v="bing">Bing</button></div>
       <div class="seg" id="sgBu"><button data-v="all" class="on">All</button><button data-v="IDM">IDM</button><button data-v="SIEM">SIEM</button></div>
       <div class="bench" title="Share of the quarter elapsed."><span class="bl">Benchmark</span><span class="bv" id="bv">—</span><span class="bd" id="bd"></span></div>
-      <div class="fx"><label for="fx">FX</label><input id="fx" type="number" step="0.1" min="1" value="95.6"><label>&#8377;/$</label></div>
+      <div class="fx"><label for="fx">FX</label><input id="fx" type="number" step="0.1" min="1" value="__FX__"><label>&#8377;/$</label></div>
       <div class="grow"></div>
       <div class="srch">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
@@ -331,7 +331,7 @@ const QS=Date.UTC(2026,6,1),QE=Date.UTC(2026,8,30),DAY=864e5;
 let ASOF=Date.UTC(__AY__,__AM__,__AD__);
 let DT=Math.round((QE-QS)/DAY)+1, DE=Math.round((ASOF-QS)/DAY)+1;
 let DREM=DT-DE, BENCH=DE/DT;
-let DATA_STATE={status:'embedded',generatedAt:null};
+let DATA_STATE=__DATA_STATE__;
 function recomputeDates(asOfIso){
   ASOF=Date.parse(asOfIso+'T00:00:00Z');
   DT=Math.round((QE-QS)/DAY)+1;
@@ -381,7 +381,7 @@ function projRem(r,key){
   return r.wd[key]*REM.wd + r.we[key]*REM.we;
 }
 
-let ST={per:'quarter',key:'ALL',bu:'all',eng:'all',srch:'',fx:95.6,open:{}};
+let ST={per:'quarter',key:'ALL',bu:'all',eng:'all',srch:'',fx:__FX__,open:{}};
 const engLabel=()=>ST.eng==='google'?'Google':ST.eng==='bing'?'Bing':'Google + Bing';
 /* budget for a product under the active engine filter */
 const budOf=c=>ST.eng==='google'?bgU(c):ST.eng==='bing'?bbU(c):bgU(c)+bbU(c);
@@ -502,6 +502,9 @@ function render(){
     freshness=' · refreshed '+(ago===null?'today':(ago<1?'just now':ago+'h ago'));
   } else if(DATA_STATE.status==='stale'){
     freshness=' · ⚠ live refresh unavailable, showing last build';
+  } else if(DATA_STATE.generatedAt){
+    const ago=Math.round((Date.now()-Date.parse(DATA_STATE.generatedAt))/3600000);
+    freshness=' · built '+(ago<1?'just now':ago<48?ago+'h ago':Math.round(ago/24)+' days ago');
   } else freshness='';
   const fxNote=DATA_STATE.fxSource
     ? ' ('+DATA_STATE.fxSource+(DATA_STATE.fxAsOf?' '+DATA_STATE.fxAsOf:'')+')' : '';
@@ -513,6 +516,27 @@ function render(){
   }
   document.getElementById('asof').textContent=
     'US-targeted campaigns · USD @ ₹'+ST.fx+fxNote+' · data through '+stamp+freshness+eng;
+  const SW=document.getElementById('staleWarn');
+  if(SW){
+    const F=DATA_STATE.freshness||{},w=[];
+    if(F.google&&F.bing){
+      const gap=Math.round(Math.abs(Date.parse(F.google+'T00:00:00Z')
+                                   -Date.parse(F.bing+'T00:00:00Z'))/DAY);
+      if(gap>=3){
+        const slow=F.bing<F.google?'Bing':'Google',fast=slow==='Bing'?'Google':'Bing';
+        w.push('⚠ '+slow+' is '+gap+' days behind '+fast+
+          ' in BigQuery — its data transfer has likely stopped. Everything below '+
+          'is capped at '+stamp+' because of it.');
+      }
+    }
+    if(DATA_STATE.generatedAt){
+      const h=(Date.now()-Date.parse(DATA_STATE.generatedAt))/3600000;
+      if(h>36)w.push('⚠ This page was last rebuilt '+Math.round(h/24)+
+        ' days ago — the daily refresh may have stopped.');
+    }
+    SW.innerHTML=w.join('<br>');
+    SW.style.display=w.length?'':'none';
+  }
   document.getElementById('foot').innerHTML=
     'Benchmark = days elapsed &divide; days in quarter ('+DE+'/'+DT+'). '+
     'Projected Q3 = spend to date + (last '+WDAYS+' days&rsquo; average daily spend &times; '+DREM+' days left).<br>'+
