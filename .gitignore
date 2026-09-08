@@ -33,3 +33,6 @@ data.json
 Thumbs.db
 .vscode/
 .idea/
+
+# Scheduled sync output
+logs/
