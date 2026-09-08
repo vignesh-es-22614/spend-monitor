@@ -1,6 +1,6 @@
 {
   "_comment": "Bing spend lifted from the Ads API while the BigQuery transfer is down. build-site.js uses these rows INSTEAD OF BigQuery for any date listed in coveredDates. Delete this file once the transfer is fixed and has backfilled.",
-  "generatedAt": "2026-09-08T07:51:34.958Z",
+  "generatedAt": "2026-09-08T10:27:30.734Z",
   "coveredDates": [
     "2026-08-23",
     "2026-08-24",
@@ -1356,7 +1356,7 @@
       "date": "2026-09-07",
       "product": "ADAP",
       "isUs": false,
-      "costInr": 58647.24
+      "costInr": 59102.04
     },
     {
       "date": "2026-09-07",
@@ -1368,7 +1368,7 @@
       "date": "2026-09-07",
       "product": "ADMP",
       "isUs": false,
-      "costInr": 189085.58
+      "costInr": 189612.99
     },
     {
       "date": "2026-09-07",
@@ -1380,7 +1380,7 @@
       "date": "2026-09-07",
       "product": "ADSSP",
       "isUs": false,
-      "costInr": 70276.11
+      "costInr": 71022.33
     },
     {
       "date": "2026-09-07",
