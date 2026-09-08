@@ -96,29 +96,49 @@ function alignedCutoff(rows) {
   let all = await fetchSpend(from, to);
   if (!all.length) throw new Error(`No spend rows for ${from}..${to}`);
 
-  // Bing's BigQuery transfer stopped after 2026-08-27 and wrote that last day
-  // only partially. data/bing-backfill.json carries the missing days lifted
-  // from the Ads API. It REPLACES BigQuery for every date it covers rather
-  // than adding to it, so a partial day is corrected instead of double
-  // counted. Verified against BigQuery on the overlapping days: 61 buckets,
-  // worst 0.00%. Delete the file once the transfer is fixed.
+  // The Microsoft Ads BigQuery transfer runs days behind Google's and has
+  // twice stalled outright, which caps the whole dashboard at the slower
+  // engine. data/bing-backfill.json carries days lifted straight from the Ads
+  // API (refresh it with scripts/sync-bing.js).
+  //
+  // Per DATE we take whichever source reports MORE Bing spend. A partial or
+  // missing BigQuery write is always the smaller number, and once the transfer
+  // catches up it matches or exceeds the snapshot. An earlier version replaced
+  // BigQuery outright for every covered date, which fixed the gap but meant a
+  // stale file would silently hold back live data forever. Taking the max
+  // self-heals in both directions, so the file is safe to leave in place.
   let backfill = null;
   const BACKFILL = path.join(ROOT, 'data', 'bing-backfill.json');
   if (fs.existsSync(BACKFILL)) {
     const bf = JSON.parse(fs.readFileSync(BACKFILL, 'utf8'));
-    const covered = new Set(bf.coveredDates);
-    const before = all.length;
-    const kept = all.filter((r) => !(r.engine === 'bing' && covered.has(r.date)));
-    const added = bf.rows
-      .filter((r) => r.date >= from && r.date <= to)
-      .map((r) => ({
+    const bfRows = bf.rows.filter((r) => r.date >= from && r.date <= to);
+
+    const byDate = (rows) => {
+      const m = new Map();
+      for (const r of rows) m.set(r.date, (m.get(r.date) || 0) + (Number(r.costInr) || 0));
+      return m;
+    };
+    const bqBing = all.filter((r) => r.engine === 'bing');
+    const bqTot = byDate(bqBing);
+    const bfTot = byDate(bfRows);
+
+    const useBackfill = new Set();
+    for (const [date, v] of bfTot) if (v > (bqTot.get(date) || 0)) useBackfill.add(date);
+
+    if (useBackfill.size) {
+      const kept = all.filter((r) => !(r.engine === 'bing' && useBackfill.has(r.date)));
+      const added = bfRows.filter((r) => useBackfill.has(r.date)).map((r) => ({
         date: r.date, product: r.product, engine: 'bing',
         isUs: !!r.isUs, costInr: Number(r.costInr) || 0,
       }));
-    all = kept.concat(added);
-    backfill = { from: bf.coveredDates[0], to: bf.coveredDates.at(-1), generatedAt: bf.generatedAt };
-    console.log(`Backfill: swapped ${before - kept.length} BigQuery Bing rows `
-      + `for ${added.length} from the Ads API (${backfill.from}..${backfill.to})`);
+      all = kept.concat(added);
+      const dates = [...useBackfill].sort();
+      backfill = { from: dates[0], to: dates.at(-1), generatedAt: bf.generatedAt, days: dates.length };
+      console.log(`Backfill: Ads API ahead of BigQuery on ${dates.length} day(s) `
+        + `(${dates[0]}..${dates.at(-1)}) — using it for those`);
+    } else {
+      console.log('Backfill present but BigQuery has caught up on every day — ignoring it.');
+    }
   }
 
   const { cutoff, perEngine } = alignedCutoff(all);
