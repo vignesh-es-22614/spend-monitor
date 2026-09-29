@@ -19,7 +19,9 @@ const path = require('path');
 
 const LIB = path.join(__dirname, '..', 'functions', 'spend_pacing_cron', 'lib');
 const { fetchSpend } = require(path.join(LIB, 'bigquery'));
-const { PRODUCTS, BUDGETS_USD, QUARTER } = require(path.join(LIB, 'config'));
+const {
+  PRODUCTS, BUDGETS_USD, BUDGETS_BY_MONTH, QUARTER,
+} = require(path.join(LIB, 'config'));
 const { resolve: fxResolve } = require(path.join(LIB, 'fx'));
 const {
   benchmark, recentRate, aggregate, metricsFor, buildInsights, RECENT_WINDOW_DAYS,
@@ -165,16 +167,30 @@ function alignedCutoff(rows) {
   }));
   const [y, m, d] = asOf.split('-').map(Number);
 
-  // The page stores budgets as [google, bing] tuples; config.js keeps them as
-  // {google, bing}. Passing the object straight through makes every lookup
-  // return 0 and the whole Budget column renders blank.
-  const budgetTuples = {};
-  for (const [code, b] of Object.entries(BUDGETS_USD)) {
-    budgetTuples[code] = [b.google || 0, b.bing || 0];
+  // The page wants {'2026-09': {CODE: [google, bing]}}; config.js keeps
+  // {google, bing} objects. Passing those through unchanged makes every lookup
+  // return 0 and the whole Budget column renders blank — that was a real bug,
+  // so the shape is asserted below rather than trusted.
+  const budgetsByMonth = {};
+  for (const [ym, month] of Object.entries(BUDGETS_BY_MONTH)) {
+    budgetsByMonth[ym] = {};
+    for (const [code, b] of Object.entries(month)) {
+      budgetsByMonth[ym][code] = [b.google || 0, b.bing || 0];
+    }
   }
-  const totalBudget = Object.values(budgetTuples).reduce((a, [g, bb]) => a + g + bb, 0);
-  if (totalBudget <= 0) throw new Error('Budgets resolved to zero — check BUDGETS_USD in lib/config.js');
-  console.log(`Budgets: ${Object.keys(budgetTuples).length} products, $${totalBudget.toLocaleString()} total`);
+  const monthTotal = (ym) => Object.values(budgetsByMonth[ym])
+    .reduce((a, [g, bb]) => a + g + bb, 0);
+  const quarterTotal = Object.values(BUDGETS_USD)
+    .reduce((a, b) => a + b.google + b.bing, 0);
+  if (quarterTotal <= 0) {
+    throw new Error('Budgets resolved to zero — check BUDGETS_BY_MONTH in lib/config.js');
+  }
+  for (const ym of Object.keys(budgetsByMonth)) {
+    if (monthTotal(ym) <= 0) throw new Error(`Budget month ${ym} sums to zero`);
+    console.log(`Budget ${ym}: $${Math.round(monthTotal(ym)).toLocaleString()}`);
+  }
+  console.log(`Q3 total: $${Math.round(quarterTotal).toLocaleString()} `
+    + `across ${Object.keys(BUDGETS_USD).length} products`);
 
   // The Schedule tab has no server to query, so bake in the live config and a
   // link to where it is actually edited.
@@ -187,7 +203,7 @@ function alignedCutoff(rows) {
     .replace(/__FX__/g, String(fx.rate))
     .replace('__DATA__', JSON.stringify(usRows))
     .replace('__PRODUCTS__', JSON.stringify(PRODUCTS))
-    .replace('__BUDGETS__', JSON.stringify(budgetTuples))
+    .replace('__BUDGETS__', JSON.stringify(budgetsByMonth))
     .replace('__SCHEDULE__', JSON.stringify({
       enabled: cfg.enabled, cadence: cfg.cadence, days: cfg.days,
       dayOfMonth: cfg.dayOfMonth, recipients: cfg.recipients, cc: cfg.cc,

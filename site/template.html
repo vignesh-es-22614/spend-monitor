@@ -254,12 +254,26 @@ footer{margin-top:24px;padding-top:13px;border-top:1px solid var(--edge);font-fa
 </div></div>
 
 <div class="mask" id="mBud"><div class="modal">
-  <div class="mh"><h2>Quarterly budgets (USD)</h2><button class="x" data-close="mBud">&times;</button></div>
-  <div class="mb"><div class="hint">Pre-filled from your Q3 workbook. Weekly derives as &divide;13, monthly &divide;3.
-  Saved in this browser.</div>
-  <div class="ts"><table style="min-width:520px"><thead><tr><th class="lft" style="text-align:left">Product</th>
-    <th class="bl">Google</th><th>Bing</th><th>Total</th></tr></thead><tbody id="bb"></tbody></table></div></div>
-  <div class="mf"><button class="btn" id="bReset">Reset to sheet</button><button class="btn pri" data-close="mBud">Done</button></div>
+  <div class="mh"><h2>Monthly budgets (USD)</h2><button class="x" data-close="mBud">&times;</button></div>
+  <div class="mb">
+    <label for="budMonth">Month</label>
+    <select id="budMonth" style="font-family:var(--mono);margin-bottom:6px"></select>
+    <div class="hint" id="budNote"></div>
+    <div class="ts"><table style="min-width:560px"><thead><tr><th class="lft" style="text-align:left">Product</th>
+      <th class="bl">Google</th><th>Bing</th><th>All</th></tr></thead>
+      <tbody id="bb"></tbody>
+      <tfoot><tr class="tot"><td class="lft" style="color:#fff">Total</td>
+        <td class="bl" id="btG" style="color:#fff"></td><td id="btB" style="color:#fff"></td>
+        <td id="btT" style="color:#fff"></td></tr></tfoot></table></div>
+    <div class="note2">Each month is its own plan — a week spanning two months
+    draws from both, day by day. Only months inside Q3 affect this dashboard;
+    later months are stored for when the quarter rolls over. Saved in this
+    browser, so the committed defaults are what everyone else sees.</div>
+  </div>
+  <div class="mf"><span id="budMsg" style="flex:1;font-size:12px;color:var(--ink-3);align-self:center"></span>
+    <button class="btn" id="bCopyBud">Copy for config.js</button>
+    <button class="btn" id="bReset">Reset to sheet</button>
+    <button class="btn pri" data-close="mBud">Done</button></div>
 </div></div>
 
 <div class="mask" id="mIns"><div class="modal" style="max-width:780px">
@@ -365,7 +379,8 @@ function recomputeDates(asOfIso){
   WDAYS=Math.round((ASOF-WSTART)/DAY)+1;
   REM=dayCounts(ASOF+DAY,QE);
 }
-const FR={week:1/13,month:1/3,quarter:1};
+/* Budget fractions used to live here (week 1/13, month 1/3). Budgets are now
+   per month and summed day by day, so nothing needs a fixed share. */
 /* Projection uses the trailing-window run-rate, not the quarter average. */
 const WINDOW=21;
 let WSTART=Math.max(QS, ASOF-(WINDOW-1)*DAY);
@@ -407,21 +422,68 @@ function projRem(r,key){
 
 let ST={per:'quarter',key:'ALL',bu:'all',eng:'all',srch:'',fx:__FX__,open:{}};
 const engLabel=()=>ST.eng==='google'?'Google':ST.eng==='bing'?'Bing':'Google + Bing';
-/* budget for a product under the active engine filter */
-const budOf=c=>ST.eng==='google'?bgU(c):ST.eng==='bing'?bbU(c):bgU(c)+bbU(c);
-/* Stored budgets win, but any product missing one falls back to the sheet
-   defaults — an empty stored object must never blank the Budget column. */
+/* ---- budgets, by month ------------------------------------------------
+   The plan is re-cut every month, so budgets are stored per month as
+   {'2026-09': {ADAP:[google,bing], ...}} and every period's figure is summed
+   day by day from whichever months it touches. A single quarterly number
+   divided by 13 or 3 could not express months of different length, nor a week
+   straddling two of them with different plans. */
 let B=JSON.parse(JSON.stringify(BUD0));
 try{
-  const saved=JSON.parse(localStorage.getItem('sp_bud_v5')||'null');
+  /* v6: keyed by month. The v5 key held one quarterly tuple per product and
+     is deliberately not migrated - those numbers mean something different. */
+  const saved=JSON.parse(localStorage.getItem('sp_bud_v6')||'null');
   if(saved&&typeof saved==='object'){
-    Object.keys(saved).forEach(c=>{
-      const v=saved[c];
-      if(Array.isArray(v)&&((v[0]||0)+(v[1]||0))>0)B[c]=[v[0]||0,v[1]||0];});
+    Object.keys(saved).forEach(ym=>{
+      if(!/^\d{4}-\d\d$/.test(ym))return;
+      const m=saved[ym];if(!m||typeof m!=='object')return;
+      B[ym]=B[ym]||{};
+      Object.keys(m).forEach(c=>{
+        const v=m[c];
+        if(Array.isArray(v))B[ym][c]=[Number(v[0])||0,Number(v[1])||0];});
+    });
   }
 }catch(e){}
-const save=()=>{try{localStorage.setItem('sp_bud_v5',JSON.stringify(B));}catch(e){}};
-const bgU=c=>(B[c]&&B[c][0])||0,bbU=c=>(B[c]&&B[c][1])||0;
+const save=()=>{try{localStorage.setItem('sp_bud_v6',JSON.stringify(B));}catch(e){}};
+
+const ymOf=ms=>new Date(ms).toISOString().slice(0,7);
+const dim=ym=>{const[y,m]=ym.split('-').map(Number);return new Date(Date.UTC(y,m,0)).getUTCDate();};
+/* Months that have a plan, earliest first. */
+const budMonths=()=>Object.keys(B).filter(k=>/^\d{4}-\d\d$/.test(k)).sort();
+/* A month with no plan carries forward the latest earlier one. Zeros would
+   make the whole dashboard read "no budget set" the moment a month is missed. */
+function monthBud(c,ym){
+  let use=ym;
+  if(!B[ym]){const ks=budMonths().filter(m=>m<=ym);use=ks.length?ks[ks.length-1]:budMonths()[0];}
+  const t=((B[use]||{})[c])||[0,0];
+  return{g:t[0]||0,b:t[1]||0,src:use,carried:use!==ym};
+}
+/* Budget for an inclusive ms range, day-weighted. */
+function rangeBud(c,sMs,eMs){
+  let g=0,bb=0;
+  for(let t=sMs;t<=eMs;t+=DAY){
+    const ym=ymOf(t),mb=monthBud(c,ym),n=dim(ym);
+    g+=mb.g/n;bb+=mb.b/n;
+  }
+  return{g,b:bb};
+}
+/* Quarter totals, and the budget for whatever period is selected. Both clip
+   to the quarter, since the whole tool is quarter-scoped. */
+const budQ=c=>rangeBud(c,QS,QE);
+function budKey(c,key,per){
+  if(key==='ALL'||per==='quarter')return budQ(c);
+  const{s,e}=periodBounds(key,per);
+  return rangeBud(c,Math.max(s,QS),Math.min(e,QE));
+}
+/* Quarter-level per-engine budgets — what the projection is judged against. */
+const bgU=c=>budQ(c).g, bbU=c=>budQ(c).b;
+/* budget for a product under the active engine filter, for the quarter */
+const budOf=c=>ST.eng==='google'?bgU(c):ST.eng==='bing'?bbU(c):bgU(c)+bbU(c);
+/* ...and for a specific period, which is what the tables actually want. */
+function budOfKey(c,key,per){
+  const b=budKey(c,key,per);
+  return ST.eng==='google'?b.g:ST.eng==='bing'?b.b:b.g+b.b;
+}
 
 const usd=n=>{if(n===null||n===undefined||isNaN(n))return '—';
   const v=Math.round(n);return (v<0?'-$':'$')+Math.abs(v).toLocaleString('en-US');};
@@ -501,13 +563,14 @@ function sev(pv,pace){
   return r>1.05?'over':r<0.90?'watch':'good';
 }
 const sevC=s=>s==='over'?'var(--over)':s==='watch'?'var(--watch)':s==='good'?'var(--good)':'var(--ink-3)';
-/* budget fraction for the selected timeline */
-function budFrac(){return ST.key==='ALL'?1:FR[ST.per];}
-
-function metrics(A,f){
+function metrics(A){
   const M={},qA=agg(RAW),R=rates();
   PRODUCTS.forEach(p=>{const c=p.code,a=A[c],qa=qA[c],r=R[c];
-    const BG=bgU(c)*f,BB=bbU(c)*f,BT=budOf(c)*f;
+    /* The selected period's own budget, summed day by day from the months it
+       covers, rather than the quarter times a fixed fraction. */
+    const pb=budKey(c,ST.key,ST.per);
+    const BG=pb.g,BB=pb.b;
+    const BT=ST.eng==='google'?pb.g:ST.eng==='bing'?pb.b:pb.g+pb.b;
     const g=toUsd(a.g),b=toUsd(a.b);
     const t=ST.eng==='google'?g:ST.eng==='bing'?b:toUsd(a.t);
     const qBT=budOf(c);
@@ -610,10 +673,10 @@ function render(){
     '<span class="pc good">green</span> on pace. The tick on each bar marks the benchmark.<br>'+
     'Scope is US-targeted campaigns in USD at FX '+ST.fx+', matching your Q3 workbook. Spend is live from Google Ads Data Transfer + Bing.<br>'+
     'Click any product, group or BU row to expand its '+(ST.per==='quarter'?'monthly':ST.per==='month'?'monthly':'weekly')+' breakdown.';
-  const f=budFrac(),A=agg(rowsFor(ST.key)),M=metrics(A,f),V=vis();
+  const A=agg(rowsFor(ST.key)),M=metrics(A),V=vis();
   document.getElementById('tTitle').textContent=
     (ST.key==='ALL'?'Q3 2026 · to date':labelOf(ST.key,ST.per))+' — '+engLabel()+' — '+V.length+' products';
-  thead();kpis(M,V);trend();table(M,V,f);insights(M,V);
+  thead();kpis(M,V);trend();table(M,V);insights(M,V);
 }
 function thead(){
   const both=ST.eng==='all';
@@ -647,13 +710,15 @@ function trend(){
   const P=ST.per==='quarter'?[{key:'2026-07',label:'July'},{key:'2026-08',label:'August'}]:allPeriodsAsc();
   const per=ST.per==='quarter'?'month':ST.per;
   const V=vis(),codes=new Set(V.map(p=>p.code));
-  let bud=0;V.forEach(p=>bud+=budOf(p.code)*FR[per]);
   const showG=ST.eng!=='bing',showB=ST.eng!=='google';
   const vals=P.map(p=>{let g=0,b=0;
     RAW.forEach(r=>{if(!codes.has(r.p))return;if(keyOf(r.d,per)!==p.key)return;
       if(r.e==='g')g+=r.c;else b+=r.c;});
     g=toUsd(g);b=toUsd(b);
     const t=ST.eng==='google'?g:ST.eng==='bing'?b:g+b;
+    /* Each bar carries its OWN budget line now — months differ, so one shared
+       target across the chart would be wrong for most of the bars. */
+    let bud=0;V.forEach(x=>bud+=budOfKey(x.code,p.key,per));
     return{key:p.key,label:p.label,g,b,t,bud};});
   const max=Math.max(1,...vals.map(v=>Math.max(v.t,v.bud)));
   const n=vals.length,w=1000/n,gap=Math.min(8,w*.26),H=88;let s='';
@@ -717,8 +782,9 @@ function detail(codes){
   const both=ST.eng==='all';
   /* The per-engine budget columns were left blank here, so the Google and Bing
      halves of an expanded row had spend with nothing to judge it against. */
-  let bud=0,budG=0,budB=0;
-  codes.forEach(c=>{bud+=budOf(c)*FR[per];budG+=bgU(c)*FR[per];budB+=bbU(c)*FR[per];});
+  /* Budgets move to inside the row loop: each period draws from its own
+     month's plan, so a single figure for the whole breakdown would be wrong
+     for every row but one. */
   let h='<tr class="det dethd"><td class="lft">'+(per==='month'?'Month':'Week')+
     '</td><td class="bl">Budget</td><td>Spend</td><td>Used</td><td>Remaining</td><td></td>';
   if(both)h+='<td class="bl">Budget</td><td>Spend</td><td>Used</td>'+
@@ -730,6 +796,10 @@ function detail(codes){
       if(r.e==='g')g+=r.c;else b+=r.c;});
     g=toUsd(g);b=toUsd(b);
     const t=ST.eng==='google'?g:ST.eng==='bing'?b:g+b;
+    let bud=0,budG=0,budB=0;
+    codes.forEach(c=>{const x=budKey(c,k,per);
+      budG+=x.g;budB+=x.b;
+      bud+=ST.eng==='google'?x.g:ST.eng==='bing'?x.b:x.g+x.b;});
     const u=bud>0?t/bud*100:null,rem=bud>0?bud-t:null;
     h+='<tr class="det"><td class="lft">'+labelOf(k,per)+'</td>'+
       '<td class="bl">'+(bud>0?usd(bud):'—')+'</td><td>'+usd(t)+'</td>'+
@@ -746,7 +816,7 @@ function detail(codes){
     h+='</tr>';});
   return h;
 }
-function table(M,V,f){
+function table(M,V){
   const codes=new Set(V.map(p=>p.code));let h='';
   ['IDM','SIEM'].forEach(bu=>{
     const inBu=PRODUCTS.filter(p=>p.bu===bu&&codes.has(p.code));if(!inBu.length)return;
@@ -939,9 +1009,8 @@ function csv(){
   const head=['Product','Name','BU','Group','Engine','Period','Budget USD','Spend USD','Used %','Remaining USD',
     'Google Spend','Bing Spend','Budget Google','Budget Bing','Projected Q3 %','Projected Q3 Spend','Over/Under Q3'];
   const out=[head];
-  const f=FR[per];
   V.forEach(p=>{
-    const c=p.code,qBT=budOf(c),bud=qBT*f;
+    const c=p.code,qBT=budOf(c);
     let qt=0;RAW.forEach(r=>{if(r.p!==c)return;
       if(ST.eng==='google'&&r.e!=='g')return;
       if(ST.eng==='bing'&&r.e!=='b')return;
@@ -953,9 +1022,12 @@ function csv(){
         if(r.e==='g')g+=r.c;else b+=r.c;});
       g=toUsd(g);b=toUsd(b);
       const t=ST.eng==='google'?g:ST.eng==='bing'?b:g+b;
+      /* Each period's budget comes from its own month's plan. */
+      const pb=budKey(c,k,per);
+      const bud=ST.eng==='google'?pb.g:ST.eng==='bing'?pb.b:pb.g+pb.b;
       out.push([c,p.name,p.bu,p.grp,engLabel(),labelOf(k,per),bud.toFixed(0),t.toFixed(0),
         bud>0?(t/bud*100).toFixed(1):'',bud>0?(bud-t).toFixed(0):'',
-        g.toFixed(0),b.toFixed(0),(bgU(c)*f).toFixed(0),(bbU(c)*f).toFixed(0),
+        g.toFixed(0),b.toFixed(0),pb.g.toFixed(0),pb.b.toFixed(0),
         proj===null?'':proj.toFixed(1),
         qBT>0?(qt/BENCH).toFixed(0):'',qBT>0?(qt/BENCH-qBT).toFixed(0):'']);});});
   return out.map(r=>r.map(x=>{const s=String(x);
@@ -1005,20 +1077,100 @@ document.getElementById('bHow').addEventListener('click',()=>{
       (T&&T.qBT?' = <b>'+big(T.over)+'</b>':'');
   document.getElementById('eqProj').innerHTML=eq;
   document.getElementById('mHow').classList.add('on');});
-document.getElementById('bBud').addEventListener('click',()=>{
+/* ---- budget panel, one month at a time ------------------------------- */
+const MONTH_NAMES=['January','February','March','April','May','June','July',
+  'August','September','October','November','December'];
+const ymLabel=ym=>{const[y,m]=ym.split('-').map(Number);
+  return MONTH_NAMES[m-1]+' '+y;};
+/* Every month of the quarter, plus the next nine, so next quarter's plan can
+   be entered before it starts. */
+function budMonthOptions(){
+  const out=[];
+  let t=QS;
+  while(t<=QE){const ym=ymOf(t);if(!out.includes(ym))out.push(ym);
+    const[y,m]=ym.split('-').map(Number);t=Date.UTC(y,m,1);}
+  let[y,m]=out[out.length-1].split('-').map(Number);
+  for(let i=0;i<9;i++){m++;if(m>12){m=1;y++;}
+    out.push(y+'-'+String(m).padStart(2,'0'));}
+  return out;
+}
+let BUD_YM=null;
+function budTotals(){
+  let g=0,b=0;
+  PRODUCTS.forEach(p=>{const x=monthBud(p.code,BUD_YM);g+=x.g;b+=x.b;});
+  document.getElementById('btG').textContent=usd(g);
+  document.getElementById('btB').textContent=usd(b);
+  document.getElementById('btT').textContent=usd(g+b);
+}
+function renderBudPanel(){
+  const inQ=BUD_YM>=ymOf(QS)&&BUD_YM<=ymOf(QE);
+  const any=PRODUCTS.some(p=>monthBud(p.code,BUD_YM).carried);
+  document.getElementById('budNote').innerHTML=
+    (any?'<b>Carried forward from '+ymLabel(monthBud(PRODUCTS[0].code,BUD_YM).src)+
+         '</b> — no plan entered for this month yet. ':'')+
+    dim(BUD_YM)+' days'+(inQ?' · inside Q3, so it drives the dashboard'
+                            :' · outside Q3, stored for later');
   document.getElementById('bb').innerHTML=PRODUCTS.map(p=>{const c=p.code;
+    const x=monthBud(c,BUD_YM);
     return '<tr><td class="lft">'+c+'</td>'+
-      '<td class="bl"><input class="bin" type="number" data-c="'+c+'" data-i="0" value="'+bgU(c)+'"></td>'+
-      '<td><input class="bin" type="number" data-c="'+c+'" data-i="1" value="'+bbU(c)+'"></td>'+
-      '<td id="bt-'+c+'">$'+(bgU(c)+bbU(c)).toLocaleString('en-US')+'</td></tr>';}).join('');
+      '<td class="bl"><input class="bin" type="number" data-c="'+c+'" data-i="0" value="'+x.g+'"></td>'+
+      '<td><input class="bin" type="number" data-c="'+c+'" data-i="1" value="'+x.b+'"></td>'+
+      '<td id="bt-'+c+'">'+usd(x.g+x.b)+'</td></tr>';}).join('');
   document.getElementById('bb').querySelectorAll('input').forEach(i=>i.addEventListener('input',e=>{
-    const c=e.target.getAttribute('data-c'),ix=+e.target.getAttribute('data-i'),v=parseFloat(e.target.value)||0;
-    B[c]=B[c]||[0,0];B[c][ix]=v;save();
-    document.getElementById('bt-'+c).textContent='$'+(bgU(c)+bbU(c)).toLocaleString('en-US');render();}));
+    const c=e.target.getAttribute('data-c'),ix=+e.target.getAttribute('data-i'),
+      v=parseFloat(e.target.value)||0;
+    /* Writing a value materialises the month, so an edit to a carried-forward
+       month does not silently also change the month it was inherited from.
+       Snapshot BEFORE assigning: monthBud() stops carrying forward the moment
+       B[BUD_YM] exists, so building into it in place reads zeros back and
+       wipes whichever engine was not being edited. */
+    if(!B[BUD_YM]){
+      const snap={};
+      PRODUCTS.forEach(p=>{const s=monthBud(p.code,BUD_YM);snap[p.code]=[s.g,s.b];});
+      B[BUD_YM]=snap;
+    }
+    B[BUD_YM][c]=B[BUD_YM][c]||[0,0];B[BUD_YM][c][ix]=v;save();
+    const x=monthBud(c,BUD_YM);
+    document.getElementById('bt-'+c).textContent=usd(x.g+x.b);
+    budTotals();renderBudPanel2();render();}));
+  budTotals();
+}
+/* Refresh only the note, so retyping does not steal focus from the input. */
+function renderBudPanel2(){
+  const any=PRODUCTS.some(p=>monthBud(p.code,BUD_YM).carried);
+  if(!any){const n=document.getElementById('budNote');
+    const inQ=BUD_YM>=ymOf(QS)&&BUD_YM<=ymOf(QE);
+    n.innerHTML=dim(BUD_YM)+' days'+(inQ?' · inside Q3, so it drives the dashboard'
+                                        :' · outside Q3, stored for later');}
+}
+document.getElementById('bBud').addEventListener('click',()=>{
+  const opts=budMonthOptions();
+  /* Open on the month the data ends in - the one being managed right now. */
+  if(!BUD_YM)BUD_YM=opts.includes(ymOf(ASOF))?ymOf(ASOF):opts[0];
+  const sel=document.getElementById('budMonth');
+  sel.innerHTML=opts.map(m=>'<option value="'+m+'">'+ymLabel(m)+'</option>').join('');
+  sel.value=BUD_YM;
+  renderBudPanel();
   document.getElementById('mBud').classList.add('on');});
+document.getElementById('budMonth').addEventListener('change',e=>{
+  BUD_YM=e.target.value;renderBudPanel();});
 document.getElementById('bReset').addEventListener('click',()=>{
-  if(confirm('Reset budgets to the sheet values?')){B=JSON.parse(JSON.stringify(BUD0));save();
+  if(confirm('Reset every month back to the committed plan?')){
+    B=JSON.parse(JSON.stringify(BUD0));save();
     document.getElementById('mBud').classList.remove('on');render();}});
+/* Budgets live in this browser only. To make a change everyone sees, it has to
+   go into lib/config.js - so hand over the exact block to paste. */
+document.getElementById('bCopyBud').addEventListener('click',async e=>{
+  const lines=PRODUCTS.map(p=>{const x=monthBud(p.code,BUD_YM);
+    return "    "+(p.code+':').padEnd(7)+" { google: "+String(x.g).padStart(6)+
+      ", bing: "+String(x.b).padStart(5)+" },";});
+  const txt="  '"+BUD_YM+"': {\n"+lines.join('\n')+"\n  },";
+  const msg=document.getElementById('budMsg');
+  try{await navigator.clipboard.writeText(txt);
+    msg.style.color='var(--ink-3)';
+    msg.textContent='Copied — paste into BUDGETS_BY_MONTH in lib/config.js.';}
+  catch(err){msg.style.color='var(--over)';msg.textContent='Could not copy.';}
+  e.target.textContent='Copied';setTimeout(()=>e.target.textContent='Copy for config.js',1600);});
 /* ---- Alerts panel --------------------------------------------------- */
 const API=DATA_URL?DATA_URL.replace(/\/data$/,''):'';
 let SCHED={enabled:true,cadence:'weekly',days:['MON'],dayOfMonth:1,recipients:''};
@@ -1115,11 +1267,10 @@ function alertWindow(kind){
   return{per,key,label:labelOf(key,per),s,e,totalDays,elapsed,partial:elapsed<totalDays};
 }
 
-/* Spend vs budget for that window. A partial window is judged against a
-   pro-rated budget, so a half-finished month is not reported as half under. */
+/* Spend vs budget for that window, day-weighted over the days that have
+   actually happened — so a half-finished month is not reported as half under,
+   and pro-rating needs no separate fraction. */
 function alertReport(win,V){
-  const frac=win.partial?win.elapsed/win.totalDays:1;
-  const share=win.per==='quarter'?1:FR[win.per];
   const lastDay=Math.min(win.e,ASOF);
   const sp={};V.forEach(p=>sp[p.code]={g:0,b:0,t:0});
   RAW.forEach(r=>{const x=sp[r.p];if(!x)return;
@@ -1128,7 +1279,8 @@ function alertReport(win,V){
     const v=toUsd(r.c);x.t+=v;if(r.e==='g')x.g+=v;else x.b+=v;});
   const rows=[];let ts=0,tb=0;
   V.forEach(p=>{
-    const bud=budOf(p.code)*share*frac;
+    const eb=rangeBud(p.code,Math.max(win.s,QS),Math.min(lastDay,QE));
+    const bud=ST.eng==='google'?eb.g:ST.eng==='bing'?eb.b:eb.g+eb.b;
     const a=sp[p.code];
     const s=ST.eng==='google'?a.g:ST.eng==='bing'?a.b:a.t;
     ts+=s;tb+=bud;
@@ -1146,10 +1298,8 @@ function alertReport(win,V){
 /* Recent periods at this granularity, newest first. Quarter shows months. */
 function alertTrend(kind,V,n){
   const per=kind==='quarter'?'month':kind;
-  const share=FR[per];
   const codes=new Set(V.map(p=>p.code));
   const keys=[...new Set(RAW.map(r=>keyOf(r.d,per)))].sort().reverse().slice(0,n);
-  let bud=0;V.forEach(p=>bud+=budOf(p.code)*share);
   const acc={};keys.forEach(k=>acc[k]={g:0,b:0});
   RAW.forEach(r=>{if(!codes.has(r.p))return;const k=keyOf(r.d,per);
     if(!acc[k])return;if(r.e==='g')acc[k].g+=r.c;else acc[k].b+=r.c;});
@@ -1157,6 +1307,7 @@ function alertTrend(kind,V,n){
     const g=toUsd(acc[k].g),b=toUsd(acc[k].b);
     const t=ST.eng==='google'?g:ST.eng==='bing'?b:g+b;
     const pk=paceOfKey(k,per);
+    let bud=0;V.forEach(p=>bud+=budOfKey(p.code,k,per));
     return{key:k,per,label:labelOf(k,per),g,b,t,budget:bud,
            used:bud>0?t/bud*100:null,rem:bud>0?bud-t:null,pace:pk,
            partial:pk.days<pk.total};

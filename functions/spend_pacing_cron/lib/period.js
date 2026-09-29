@@ -11,7 +11,9 @@
  * half-finished month is never reported as half underspent.
  */
 
-const { PRODUCTS, BUDGETS_USD, FX_INR_PER_USD, QUARTER } = require('./config');
+const {
+  PRODUCTS, BUDGETS_USD, FX_INR_PER_USD, QUARTER, budgetForRange,
+} = require('./config');
 
 const DAY = 86400000;
 const d = (s) => Date.parse(`${s}T00:00:00Z`);
@@ -68,15 +70,6 @@ function label(win) {
   return `${QUARTER.label} to date`;
 }
 
-/** Share of the quarterly budget this window represents. */
-function budgetFraction(win) {
-  const days = Math.round((win.end - win.start) / DAY) + 1;
-  const qDays = Math.round((d(QUARTER.end) - d(QUARTER.start)) / DAY) + 1;
-  if (win.kind === 'quarter') return 1;
-  if (win.kind === 'week') return 1 / 13;
-  if (win.kind === 'month') return 1 / 3;
-  return days / qDays;
-}
 
 /**
  * @returns {{label, kind, partial, elapsed, totalDays, products[], total}}
@@ -88,7 +81,6 @@ function report(rows, asOf, cadence, { fx = FX_INR_PER_USD, usOnly = true } = {}
   const totalDays = Math.round((win.end - win.start) / DAY) + 1;
   const elapsed = Math.max(0, Math.round((lastDay - win.start) / DAY) + 1);
   const partial = elapsed < totalDays;
-  const frac = totalDays > 0 ? elapsed / totalDays : 1;
 
   const spend = {};
   for (const p of PRODUCTS) spend[p.code] = { google: 0, bing: 0, total: 0 };
@@ -103,13 +95,16 @@ function report(rows, asOf, cadence, { fx = FX_INR_PER_USD, usOnly = true } = {}
     b.total += usd;
   }
 
-  const share = budgetFraction(win);
   const products = [];
   let sumSpend = 0;
   let sumBudget = 0;
   for (const p of PRODUCTS) {
-    const bq = BUDGETS_USD[p.code] || { google: 0, bing: 0 };
-    const budget = (bq.google + bq.bing) * share * (partial ? frac : 1);
+    // Day-weighted over the days that have actually happened. This replaces a
+    // quarter-figure-times-fraction, which cannot express months of different
+    // size or a week that straddles two of them — and pro-rating falls out for
+    // free, since a partial window simply has fewer days to sum.
+    const b = budgetForRange(p.code, iso(win.start), iso(lastDay));
+    const budget = b.google + b.bing;
     const s = spend[p.code].total;
     sumSpend += s;
     sumBudget += budget;
@@ -168,12 +163,6 @@ function trend(rows, asOf, cadence, { fx = FX_INR_PER_USD, usOnly = true, n = 8 
   const qStart = d(QUARTER.start);
   const qEnd = d(QUARTER.end);
 
-  const totalBudget = PRODUCTS.reduce((a, p) => {
-    const b = BUDGETS_USD[p.code] || { google: 0, bing: 0 };
-    return a + b.google + b.bing;
-  }, 0);
-  const share = kind === 'week' ? 1 / 13 : 1 / 3;
-
   const out = [];
   for (const s of starts) {
     const e = kind === 'week'
@@ -193,7 +182,15 @@ function trend(rows, asOf, cadence, { fx = FX_INR_PER_USD, usOnly = true, n = 8 
       if (t < s || t > lastDay) continue;
       spend += r.costInr / fx;
     }
-    const budget = totalBudget * share;
+    // The period's own budget, clipped to the quarter, day-weighted across
+    // whichever months it touches. Each row is the FULL period budget even
+    // when the period is still running, hence the partial flag.
+    const bStart = iso(Math.max(s, qStart));
+    const bEnd = iso(Math.min(e, qEnd));
+    const budget = PRODUCTS.reduce((a, p) => {
+      const b = budgetForRange(p.code, bStart, bEnd);
+      return a + b.google + b.bing;
+    }, 0);
     out.push({
       label: label({ kind, start: s, end: e }),
       start: iso(s), end: iso(e),
@@ -206,4 +203,4 @@ function trend(rows, asOf, cadence, { fx = FX_INR_PER_USD, usOnly = true, n = 8 
   return out;
 }
 
-module.exports = { report, trend, windowFor, label, budgetFraction, weekStart };
+module.exports = { report, trend, windowFor, label, weekStart };

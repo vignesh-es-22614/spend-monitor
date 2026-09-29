@@ -66,18 +66,117 @@ const PRODUCTS = [
   { code: 'ELA',   name: 'EventLog Analyzer',       bu: 'SIEM', grp: 'ELA Group'   },
 ];
 
-// Quarterly budgets in USD, split Google / Bing. From the Q3 workbook.
-const BUDGETS_USD = {
-  ADMP:  { google: 639000, bing: 69000 },
-  SPMP:  { google:  24000, bing:  6000 },
-  MMP:   { google:  24000, bing:  3000 },
-  RMP:   { google:   9000, bing: 15000 },
-  AD360: { google:   8400, bing:  2100 },
-  ADSSP: { google: 255000, bing: 60000 },
-  ADAP:  { google: 555000, bing: 75000 },
-  DSP:   { google:  45000, bing: 15000 },
-  ELA:   { google: 255000, bing: 60000 },
+/**
+ * MONTHLY budgets in USD, split Google / Bing. Edit this each month — the
+ * plan is re-cut monthly, so a single quarterly figure divided by three was
+ * only ever right by accident.
+ *
+ * July and August are the old Q3 quarterly figures divided by three, which is
+ * what the dashboard effectively used before. September is the re-cut plan
+ * from the Projected-Spend sheet and is materially different: ADMP 270,000
+ * against 236,000 on the old basis, ADAP 260,000 against 210,000.
+ *
+ * A month with no entry carries forward the most recent month that has one,
+ * and the Budget panel marks it as carried forward. Zeros would be worse: the
+ * whole dashboard would read "no budget set" the moment a month was missed.
+ *
+ * NOTE on MMP September: the sheet's Overall column says 8,000 but its own
+ * Google + Bing split is 6,500 + 1,000 = 7,500. The split is used here,
+ * because the engine filter has to reconcile. Worth correcting at source.
+ */
+const BUDGETS_BY_MONTH = {
+  // Q3 quarterly plan / 3 — all nine divide cleanly.
+  '2026-07': {
+    ADMP:  { google: 213000, bing: 23000 },
+    SPMP:  { google:   8000, bing:  2000 },
+    MMP:   { google:   8000, bing:  1000 },
+    RMP:   { google:   3000, bing:  5000 },
+    AD360: { google:   2800, bing:   700 },
+    ADSSP: { google:  85000, bing: 20000 },
+    ADAP:  { google: 185000, bing: 25000 },
+    DSP:   { google:  15000, bing:  5000 },
+    ELA:   { google:  85000, bing: 20000 },
+  },
+  '2026-08': {
+    ADMP:  { google: 213000, bing: 23000 },
+    SPMP:  { google:   8000, bing:  2000 },
+    MMP:   { google:   8000, bing:  1000 },
+    RMP:   { google:   3000, bing:  5000 },
+    AD360: { google:   2800, bing:   700 },
+    ADSSP: { google:  85000, bing: 20000 },
+    ADAP:  { google: 185000, bing: 25000 },
+    DSP:   { google:  15000, bing:  5000 },
+    ELA:   { google:  85000, bing: 20000 },
+  },
+  // Projected spend 2026, September.
+  '2026-09': {
+    ADMP:  { google: 244000, bing: 26000 },
+    SPMP:  { google:   6000, bing:  4000 },
+    MMP:   { google:   6500, bing:  1000 },
+    RMP:   { google:   5100, bing:  2400 },
+    AD360: { google:   2275, bing:  1225 },
+    ADSSP: { google:  75000, bing: 15000 },
+    ADAP:  { google: 223000, bing: 37000 },
+    DSP:   { google:  18750, bing:  6250 },
+    ELA:   { google:  80388, bing: 24612 },
+  },
 };
+
+const MONTH_KEYS = Object.keys(BUDGETS_BY_MONTH).sort();
+
+/** Calendar days in a 'YYYY-MM'. */
+function daysInMonth(ym) {
+  const [y, m] = ym.split('-').map(Number);
+  return new Date(Date.UTC(y, m, 0)).getUTCDate();
+}
+
+/**
+ * The budget for one product in one month. Falls back to the latest earlier
+ * month that has one; `carried` says whether that happened, so callers can
+ * label it rather than pass it off as planned.
+ */
+function budgetForMonth(code, ym) {
+  let use = ym;
+  if (!BUDGETS_BY_MONTH[ym]) {
+    const prior = MONTH_KEYS.filter((m) => m <= ym);
+    use = prior.length ? prior[prior.length - 1] : MONTH_KEYS[0];
+  }
+  const b = (BUDGETS_BY_MONTH[use] || {})[code] || { google: 0, bing: 0 };
+  return { google: b.google || 0, bing: b.bing || 0, source: use, carried: use !== ym };
+}
+
+/**
+ * Budget for an inclusive date range, day-weighted.
+ *
+ * Every period's budget now comes from here. With one figure per quarter a
+ * flat 1/13 per week was defensible; with a different figure each month it is
+ * not — a week straddling August and September draws from both, and months
+ * are 30 or 31 days long. Summing per day is the only version that adds up.
+ */
+function budgetForRange(code, fromIso, toIso) {
+  const DAY = 86400000;
+  let google = 0;
+  let bing = 0;
+  const end = Date.parse(`${toIso}T00:00:00Z`);
+  for (let t = Date.parse(`${fromIso}T00:00:00Z`); t <= end; t += DAY) {
+    const ym = new Date(t).toISOString().slice(0, 7);
+    const b = budgetForMonth(code, ym);
+    const n = daysInMonth(ym);
+    google += b.google / n;
+    bing += b.bing / n;
+  }
+  return { google, bing };
+}
+
+/**
+ * Quarter totals, derived rather than declared, so the months stay the single
+ * source of truth. Same shape as the old constant, which is why the pacing and
+ * payload code that wants a quarter figure needs no change.
+ */
+const BUDGETS_USD = PRODUCTS.reduce((acc, p) => {
+  acc[p.code] = budgetForRange(p.code, QUARTER.start, QUARTER.end);
+  return acc;
+}, {});
 
 // Thresholds for the insight buckets, as % of budget projected to quarter end.
 const THRESHOLDS = {
@@ -95,5 +194,10 @@ module.exports = {
   NON_US_PATTERN,
   PRODUCTS,
   BUDGETS_USD,
+  BUDGETS_BY_MONTH,
+  MONTH_KEYS,
+  budgetForMonth,
+  budgetForRange,
+  daysInMonth,
   THRESHOLDS,
 };
